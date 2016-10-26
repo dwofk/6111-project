@@ -1,0 +1,76 @@
+Copyright 1986-2014 Xilinx, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2014.4 (win64) Build 1071353 Tue Nov 18 18:24:04 MST 2014
+| Date         : Tue Mar 10 17:18:35 2015
+| Host         : WK86 running 64-bit Service Pack 1  (build 7601)
+| Command      : report_control_sets -verbose -file vga_ctrl_control_sets_placed.rpt
+| Design       : vga_ctrl
+| Device       : xc7a100t
+-------------------------------------------------------------------------------------
+
+Control Set Information
+
+Table of Contents
+-----------------
+1. Summary
+2. Flip-Flop Distribution
+3. Detailed Control Set Information
+
+1. Summary
+----------
+
++-------------------------------------------------------------------+-------+
+|                               Status                              | Count |
++-------------------------------------------------------------------+-------+
+| Number of unique control sets                                     |    23 |
+| Minimum Number of register sites lost to control set restrictions |    69 |
++-------------------------------------------------------------------+-------+
+
+
+2. Flip-Flop Distribution
+-------------------------
+
++--------------+-----------------------+------------------------+-----------------+--------------+
+| Clock Enable | Synchronous Set/Reset | Asynchronous Set/Reset | Total Registers | Total Slices |
++--------------+-----------------------+------------------------+-----------------+--------------+
+| No           | No                    | No                     |             117 |           54 |
+| No           | No                    | Yes                    |               0 |            0 |
+| No           | Yes                   | No                     |             114 |           33 |
+| Yes          | No                    | No                     |              79 |           26 |
+| Yes          | No                    | Yes                    |               0 |            0 |
+| Yes          | Yes                   | No                     |              29 |            8 |
++--------------+-----------------------+------------------------+-----------------+--------------+
+
+
+3. Detailed Control Set Information
+-----------------------------------
+
++-----------------------------+---------------------------------------------------+---------------------------------------------------------------+------------------+----------------+
+|         Clock Signal        |                   Enable Signal                   |                        Set/Reset Signal                       | Slice Load Count | Bel Load Count |
++-----------------------------+---------------------------------------------------+---------------------------------------------------------------+------------------+----------------+
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | Inst_MouseCtl/Inst_Ps2Interface/clk_inter0                    |                1 |              4 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | Inst_MouseCtl/Inst_Ps2Interface/data_inter0                   |                1 |              4 |
+|  clk_wiz_0_inst/U0/clk_out1 | Inst_MouseCtl/Inst_Ps2Interface/shift_frame       | Inst_MouseCtl/Inst_Ps2Interface/reset_bit_count               |                1 |              4 |
+|  clk_wiz_0_inst/U0/clk_out1 | Inst_MouseCtl/Inst_Ps2Interface/O10               |                                                               |                2 |              4 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | Inst_MouseCtl/Inst_Ps2Interface/n_0_delay_100us_count[13]_i_1 |                3 |              5 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | Inst_MouseCtl/Inst_Ps2Interface/n_0_delay_20us_count[5]_i_1   |                2 |              5 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | Inst_MouseCtl/Inst_Ps2Interface/n_0_delay_20us_count[10]_i_1  |                3 |              6 |
+|  clk_wiz_0_inst/U0/clk_out1 | Inst_MouseCtl/Inst_Ps2Interface/O12               | Inst_MouseCtl/n_0_x_inc[7]_i_1                                |                2 |              6 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | Inst_MouseCtl/Inst_Ps2Interface/n_0_delay_63clk_count[6]_i_1  |                2 |              7 |
+|  clk_wiz_0_inst/U0/clk_out1 | Inst_MouseCtl/Inst_Ps2Interface/O4                | Inst_MouseCtl/Inst_Ps2Interface/O3                            |                2 |              7 |
+|  clk_wiz_0_inst/U0/clk_out1 | Inst_MouseCtl/Inst_Ps2Interface/load_rx_data      |                                                               |                1 |              8 |
+|  clk_wiz_0_inst/U0/clk_out1 | Inst_MouseCtl/write_data                          |                                                               |                5 |              8 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | Inst_MouseCtl/Inst_Ps2Interface/n_0_delay_100us_count[12]_i_1 |                3 |              9 |
+|  clk_wiz_0_inst/U0/clk_out1 | Inst_MouseCtl/Inst_Ps2Interface/n_0_frame[10]_i_1 |                                                               |                2 |             11 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | n_0_vga_red_reg[3]_i_1                                        |                2 |             12 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | eqOp4_in                                                      |                3 |             12 |
+|  clk_wiz_0_inst/U0/clk_out1 | eqOp4_in                                          | v_cntr_reg0                                                   |                3 |             12 |
+|  clk_wiz_0_inst/U0/clk_out1 | Inst_MouseCtl/n_0_x_new_reg                       |                                                               |                3 |             12 |
+|  clk_wiz_0_inst/U0/clk_out1 | Inst_MouseCtl/n_0_y_new_reg                       |                                                               |                4 |             12 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | Inst_MouseCtl/reset_timeout_cnt                               |                7 |             24 |
+|  clk_wiz_0_inst/U0/clk_out1 | v_sync_reg                                        |                                                               |                9 |             24 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   | Inst_MouseCtl/reset_periodic_check_cnt                        |                6 |             26 |
+|  clk_wiz_0_inst/U0/clk_out1 |                                                   |                                                               |               54 |            117 |
++-----------------------------+---------------------------------------------------+---------------------------------------------------------------+------------------+----------------+
+
+
