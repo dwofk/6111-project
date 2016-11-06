@@ -1,8 +1,8 @@
 module ycrcb2rgb_tb();
 
   reg clock, reset;
-  reg y, cr, cb;
-  wire r, g, b;
+  reg [7:0] y, cr, cb;
+  wire [7:0] r, g, b;
 
   ycrcb2rgb dut(
     .clk    (clock),
@@ -33,14 +33,14 @@ module ycrcb2rgb_tb();
     reset = 1'b1;
     #100 reset = 1'b0;
 
-    #30     // wait for output
+    #20     // wait for output
 
     // second stimulus
     y = 98;
     cb = 184;
     cr = 93;
 
-    #30     // wait for output
+    #20     // wait for output
 
     #100 $stop;
   end
