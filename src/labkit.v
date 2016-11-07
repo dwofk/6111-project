@@ -488,7 +488,7 @@ module pong_game (
    reg [23:0] pixel_q;
    assign pixel = pixel_q;
 
-   reg re, we;
+   wire re, we;
    reg [15:0] rd_addr = 0;
    reg [15:0] wr_addr = 0;
    wire [23:0] din;
@@ -511,12 +511,19 @@ module pong_game (
    wire bram_loaded;
    assign bram_loaded = (wr_addr == 16'd65535);
    assign we = !bram_loaded;
+   assign re = 0;
+   
+   wire in_display;
+   assign in_display = ((hcount < 256) && (vcount < 256));
 
    always @(posedge vclock) begin
        if (we) wr_addr <= wr_addr + 1;
-       if (re) begin
-          pixel_q <= dout;
-          rd_addr <= rd_addr + 1;
+       if (bram_loaded) begin
+          if (in_display) begin
+            pixel_q <= dout;
+            rd_addr <= rd_addr + 1;
+          end else pixel_q <= 0;
+       end
    end
 
 endmodule
