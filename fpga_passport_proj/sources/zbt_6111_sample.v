@@ -464,6 +464,7 @@ module zbt_6111_sample(beep, audio_reset_b,
     
     if (!switch_high) begin
       write_counter <= 0;
+      read_counter <= 0;
       if (sw_ntsc_d && !sw_ntsc) switch_high <= 1;
     end else begin
       if (frame_loaded && in_display) read_counter <= (read_counter == 18'd255999) ? 0 : read_counter+1'b1;
