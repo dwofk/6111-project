@@ -259,7 +259,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    ////////////////////////////////////////////////////////////////////////////
    // Demonstration of ZBT RAM as video memory
 
-   // use FPGA's digital clock manager to produce a
+/*   // use FPGA's digital clock manager to produce a
    // 65MHz clock (actually 64.8MHz)
    wire clock_65mhz_unbuf,clock_65mhz;
    DCM vclk1(.CLKIN(clock_27mhz),.CLKFX(clock_65mhz_unbuf));
@@ -267,11 +267,11 @@ module zbt_6111_sample(beep, audio_reset_b,
    // synthesis attribute CLKFX_MULTIPLY of vclk1 is 24
    // synthesis attribute CLK_FEEDBACK of vclk1 is NONE
    // synthesis attribute CLKIN_PERIOD of vclk1 is 37
-   BUFG vclk2(.O(clock_65mhz),.I(clock_65mhz_unbuf));
+   BUFG vclk2(.O(clock_65mhz),.I(clock_65mhz_unbuf));*/
 
 //   wire clk = clock_65mhz;  // gph 2011-Nov-10
 
-/*   ////////////////////////////////////////////////////////////////////////////
+   ////////////////////////////////////////////////////////////////////////////
    // Demonstration of ZBT RAM as video memory
    // use FPGA's digital clock manager to produce a
    // 40MHz clock (actually 40.5MHz)
@@ -282,10 +282,12 @@ module zbt_6111_sample(beep, audio_reset_b,
    // synthesis attribute CLK_FEEDBACK of vclk1 is NONE
    // synthesis attribute CLKIN_PERIOD of vclk1 is 37
    BUFG vclk2(.O(clock_40mhz),.I(clock_40mhz_unbuf));
-   wire clk = clock_40mhz;
-*/
+   //wire clk = clock_40mhz;
+
 	wire locked;
 	//assign clock_feedback_out = 0; // gph 2011-Nov-10
+  
+  wire clock_65mhz = clock_40mhz;
    
    ramclock rc(.ref_clock(clock_65mhz), .fpga_clock(clk),
 					.ram0_clock(ram0_clk), 
@@ -391,9 +393,38 @@ module zbt_6111_sample(beep, audio_reset_b,
    assign 	vram_we = sw_ntsc & ntsc_we;
    assign 	vram_write_data = write_data;
 
+//	wire [23:0] vr_pixel_color;
+//
+//  zbt_6111_wrapper zbt_wrapper(
+//    .clock_27mhz        (clock_27mhz),
+//    .clock_65mhz        (clock_65mhz),
+//    .clk                (clk),
+//    .reset              (reset),
+//    .tv_in_reset_b      (tv_in_reset_b),
+//		.tv_in_i2c_clock    (tv_in_i2c_clock),
+//		.tv_in_i2c_data     (tv_in_i2c_data),
+//    .tv_in_line_clock1  (tv_in_line_clock1),
+//    //.clock_feedback_in  (clock_feedback_in),
+//    
+//    .sw_ntsc            (sw_ntsc),
+//    .stored             (stored),
+//    
+//    .hcount             (hcount),
+//    .vcount             (vcount),
+//    
+//    .ram0_we_b          (ram0_we_b),
+//    .ram0_address       (ram0_address),
+//    .ram0_data          (ram0_data),
+//    .ram0_cen_b         (ram0_cen_b),
+//    
+//    //.clock_feedback_out (clock_feedback_out),
+//    .vr_pixel_color     (vr_pixel_color),
+//    .dispdata           (dispdata)
+//  );
+
    // select output pixel data
    reg [23:0] pixel=0;
-	wire [23:0] vr_pixel_color;
+	 wire [23:0] vr_pixel_color;
    reg 	b,hs,vs;
 	//wire [7:0] my_din, my_dout;
 	//wire [17:0] my_addr;
@@ -403,30 +434,31 @@ module zbt_6111_sample(beep, audio_reset_b,
 	//assign my_din=rgbhope[7:0];
    
 	ycrcb2rgb colCvt(vr_pixel[29:20],vr_pixel[19:10],vr_pixel[9:0],
-							vr_pixel_color[23:16],vr_pixel_color[15:8],vr_pixel_color[7:0], clk, 1'b0);
-	//ycrcb2rgb forbram(ycrcb[29:20],ycrcb[19:10],ycrcb[9:0],rgb_out[23:16],rgb_out[15:8],rgb_out[7:0], clk, 1'b0);
-	//bram_ip mybram(clk,my_din, my_addr,my_wea,my_dout);
+							vr_pixel_color[23:16],vr_pixel_color[15:8],vr_pixel_color[7:0], clk, 1'b0); 
   
-  //assign rgbhope = {rgb_out[23:21], rgb_out[15:13], rgb_out[7:6]};
-	
-	//reg [17:0] counter_bram=0;
-  //reg [18:0] frame_counter=0;
+  wire [23:0] pixel_hsv, pixel_rgb;
+  wire [10:0] hcount_d1, hcount_d2;
+  wire [9:0] vcount_d1, vcount_d2;
   
-  //wire in_display = ((hcount < 640) && (vcount < 400));
-  //wire frame_loaded = (frame_counter >= 18'd255999);
-  //wire frame_read = (frame_counter == 19'd307199);
+  rgb2hsv rgb2hsv_conv(.clock(clk), .reset(reset),
+    .r(vr_pixel_color[23:16]), .b(vr_pixel_color[15:8]), .g(vr_pixel_color[7:0]),
+    .h(pixel_hsv[23:16]), .s(pixel_hsv[15:8]), .v(pixel_hsv[7:0]));
+      
+  hsv2rgb hsv2rgb_conv(.clk(clk), .rst(reset),
+      .h(pixel_hsv[23:16]), .s(pixel_hsv[15:8]), .v(pixel_hsv[7:0]),
+      .r(pixel_rgb[23:16]), .g(pixel_rgb[15:8]), .b(pixel_rgb[7:0]));
+      
+  //delay#(.DELAY(32), .SIZE(24)) hcount_delay1(.clk(clk), .din(vr_pixel_color), .dout(pixel_rgb));
   
-  //assign my_wea=((dv && !fvh[2]) && !frame_loaded);
-  //assign my_wea=(dv && !frame_loaded);
+  //delay#(.DELAY(32), .SIZE(11)) hcount_delay1(.clk(clk), .din(hcount), .dout(hcount_d2));
+  //delay#(.DELAY(9), .SIZE(11)) hcount_delay2(.clk(clk), .din(hcount_d1), .dout(hcount_d2));
 
-	//always @(posedge clk) begin
-		//counter_bram<=counter_bram+1;
-    //frame_counter<= (frame_read ? 0 :(frame_counter+1));
-	//end
-  
-	//assign my_addr[17:0]= frame_loaded ? frame_counter[17:0] : 0;
-  
-  wire in_display = hcount < 640 && vcount < 400;
+  //delay#(.DELAY(32), .SIZE(10)) vcount_delay1(.clk(clk), .din(vcount), .dout(vcount_d2));
+  //delay#(.DELAY(9), .SIZE(10)) vcount_delay2(.clk(clk), .din(vcount_d1), .dout(vcount_d2));
+    
+  //wire in_display_wr = hcount_d2 < 640 && vcount_d2 < 400;
+  wire in_display_wr = hcount < 640 && vcount < 400;
+  wire in_display_rd = hcount < 640 && vcount < 400;
   
   wire [7:0] my_din, my_dout;
   wire [17:0] my_addr;
@@ -434,6 +466,8 @@ module zbt_6111_sample(beep, audio_reset_b,
   
   reg switch_high = 0;
   reg started = 0;
+  reg started_wr = 0;
+  reg started_rd = 0;
   reg [17:0] my_addr_q = 0;
   reg pixel_d = 0;
   
@@ -447,27 +481,35 @@ module zbt_6111_sample(beep, audio_reset_b,
   reg [17:0] read_counter = 0; 
   reg bram_loaded = 0;
   
+  wire [17:0] write_counter_d2;
+  wire started_d2;
+  
   wire frame_loaded = (write_counter == 18'd255999);
   
+  reg [31*18-1:0] my_addr_shift_reg = 0;
+  reg [31:0] my_wea_shift_reg = 0;
+  
+  //bram_ip mybram(clk, my_din, my_addr_shift_reg[31*18-1:30*18], my_wea_shift_reg[31], my_dout);
   bram_ip mybram(clk, my_din, my_addr, my_wea, my_dout);
-
-  assign my_wea = !frame_loaded && started && in_display;  
+  
+  assign my_wea = !frame_loaded && started && in_display_wr;  
   assign my_addr = (!frame_loaded) ? write_counter : read_counter;
   
-  
+  //assign my_din = {pixel_rgb[23:21],pixel_rgb[15:13],pixel_rgb[7:6]};
   assign my_din = {vr_pixel_color[23:21],vr_pixel_color[15:13],vr_pixel_color[7:6]};
-
+  
   always @(posedge clk) begin
-    //if (!load_bram && stored && (my_addr == 0)) load_bram <= 1'b1;
-    //bram_counter <= bram_loaded ? bram_counter : bram_counter+1'b1;
     sw_ntsc_d <= sw_ntsc;
+    
+    my_wea_shift_reg <= {my_wea_shift_reg[31:1], my_wea};
+    my_addr_shift_reg <= {my_addr_shift_reg[31*18-1:18], my_addr};
     
     if (!switch_high) begin
       write_counter <= 0;
       read_counter <= 0;
       if (sw_ntsc_d && !sw_ntsc) switch_high <= 1;
     end else begin
-      if (frame_loaded && in_display) read_counter <= (read_counter == 18'd255999) ? 0 : read_counter+1'b1;
+      if (frame_loaded && in_display_rd) read_counter <= (read_counter == 18'd255999) ? 0 : read_counter+1'b1;
       if (!sw_ntsc_d && sw_ntsc) switch_high <= 0;
       
       if (started) begin
@@ -476,13 +518,20 @@ module zbt_6111_sample(beep, audio_reset_b,
       end else if ((hcount==0) && (vcount==0)) started <= 1;
     end
   end
-  
+    
 	reg hsync_delay[2:0];
 	reg blank_delay[2:0];
 	reg vsync_delay[2:0];
+  
+  wire hs_d, vs_d, b_d;
+  
+  //delay#(.DELAY(31), .SIZE(1)) hs_delay1(.clk(clk), .din(hs), .dout(hs_d));
+  //delay#(.DELAY(31), .SIZE(1)) vs_delay1(.clk(clk), .din(vs), .dout(vs_d));
+  //delay#(.DELAY(31), .SIZE(1)) b_delay1(.clk(clk), .din(b), .dout(b_d));
+
    always @(posedge clk)
      begin
-		pixel <= sw_ntsc ? 0 : (in_display ? {my_dout[7:5],5'd0,my_dout[4:2],5'd0,my_dout[1:0],6'd0} : 24'hFFFFFF);
+		pixel <= sw_ntsc ? 0 : (in_display_rd ? {my_dout[7:5],5'd0,my_dout[4:2],5'd0,my_dout[1:0],6'd0} : 24'hFFFFFF);
     //pixel <= sw_ntsc ? 0 : vr_pixel_color;
 		//pixel <= vr_pixel_color;
 		//pixel <= hope ? 0 : vr_pixel_color;
@@ -506,215 +555,14 @@ module zbt_6111_sample(beep, audio_reset_b,
    assign vga_out_vsync = vsync_delay[2];
 
    // debugging
-   assign led = ~{vram_addr[18:13],reset,switch[0]};
+   //assign led = ~{vram_addr[18:13],reset,switch[0]};
+   assign led = ~{6'b000000,reset,switch[0]};
 
-	//displayed on hex display for debugging
+	 //displayed on hex display for debugging
    always @(posedge clk)
      // dispdata <= {vram_read_data,9'b0,vram_addr};
      dispdata <= hcount;
 
 endmodule
 
-///////////////////////////////////////////////////////////////////////////////
-// xvga: Generate XVGA display signals (1024 x 768 @ 60Hz)
 
-module xvga(vclock,hcount,vcount,hsync,vsync,blank);
-   input vclock;
-   output [10:0] hcount;
-   output [9:0] vcount;
-   output 	vsync;
-   output 	hsync;
-   output 	blank;
-
-   reg 	  hsync,vsync,hblank,vblank,blank;
-   reg [10:0] 	 hcount;    // pixel number on current line
-   reg [9:0] vcount;	 // line number
-
-   // horizontal: 1344 pixels total
-   // display 1024 pixels per line
-   wire      hsyncon,hsyncoff,hreset,hblankon;
-   assign    hblankon = (hcount == 1023);    
-   assign    hsyncon = (hcount == 1047);
-   assign    hsyncoff = (hcount == 1183);
-   assign    hreset = (hcount == 1343);
-
-   // vertical: 806 lines total
-   // display 768 lines
-   wire      vsyncon,vsyncoff,vreset,vblankon;
-   assign    vblankon = hreset & (vcount == 767);    
-   assign    vsyncon = hreset & (vcount == 776);
-   assign    vsyncoff = hreset & (vcount == 782);
-   assign    vreset = hreset & (vcount == 805);
-
-   // sync and blanking
-   wire      next_hblank,next_vblank;
-   assign next_hblank = hreset ? 0 : hblankon ? 1 : hblank;
-   assign next_vblank = vreset ? 0 : vblankon ? 1 : vblank;
-   always @(posedge vclock) begin
-      hcount <= hreset ? 0 : hcount + 1;
-      hblank <= next_hblank;
-      hsync <= hsyncon ? 0 : hsyncoff ? 1 : hsync;  // active low
-
-      vcount <= hreset ? (vreset ? 0 : vcount + 1) : vcount;
-      vblank <= next_vblank;
-      vsync <= vsyncon ? 0 : vsyncoff ? 1 : vsync;  // active low
-
-      blank <= next_vblank | (next_hblank & ~hreset);
-   end
-endmodule
-
-module vram_display #(parameter XOFFSET = 0, YOFFSET = 0) (reset,clk,hcount,vcount,vr_pixel,
-		    vram_addr,vram_read_data);
-
-   input reset, clk;
-   input [10:0] hcount;
-   input [9:0] 	vcount;
-   output reg [29:0] vr_pixel;
-   output [18:0] vram_addr;
-   input [35:0]  vram_read_data;
-
-	wire[10:0] x;
-	wire[9:0] y;
-	assign x = hcount - XOFFSET;
-	assign y = vcount - YOFFSET;
-   //forecast hcount & vcount 2 clock cycles ahead to get data from ZBT
-   wire [10:0] hcount_f = (x >= 1048) ? x - 1048 : (x + 2);
-   wire [9:0] vcount_f = (x >= 1048) ? ((y == 805) ? 0 : y + 1) : y;
-  
-//  wire [7:0] my_din, my_dout;
-//  wire [17:0] my_addr;
-//  wire my_wea;
-//  
-//  bram_ip mybram(clk, my_din, my_addr, my_wea, my_dout);
-
-  
-	reg [18:0] vram_addr;
-	always@(*) begin
-		if(hcount_f < 640 && vcount_f < 480) begin
-			vram_addr = {vcount_f[8:0], hcount_f[9:0]};
-			vr_pixel = vram_read_data[29:0];
-		end
-		else begin
-			vr_pixel = {10'd0,10'd512,10'd512};
-		end
-	end
-
-endmodule // vram_display
-
-/////////////////////////////////////////////////////////////////////////////
-// parameterized delay line 
-
-module delayN(clk,in,out);
-   input clk;
-   input in;
-   output out;
-
-   parameter NDELAY = 3;
-
-   reg [NDELAY-1:0] shiftreg;
-   wire 	    out = shiftreg[NDELAY-1];
-
-   always @(posedge clk)
-     shiftreg <= {shiftreg[NDELAY-2:0],in};
-
-endmodule // delayN
-
-////////////////////////////////////////////////////////////////////////////
-// ramclock module
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// 6.111 FPGA Labkit -- ZBT RAM clock generation
-//
-//
-// Created: April 27, 2004
-// Author: Nathan Ickes
-//
-///////////////////////////////////////////////////////////////////////////////
-//
-// This module generates deskewed clocks for driving the ZBT SRAMs and FPGA 
-// registers. A special feedback trace on the labkit PCB (which is length 
-// matched to the RAM traces) is used to adjust the RAM clock phase so that 
-// rising clock edges reach the RAMs at exactly the same time as rising clock 
-// edges reach the registers in the FPGA.
-//
-// The RAM clock signals are driven by DDR output buffers, which further 
-// ensures that the clock-to-pad delay is the same for the RAM clocks as it is 
-// for any other registered RAM signal.
-//
-// When the FPGA is configured, the DCMs are enabled before the chip-level I/O
-// drivers are released from tristate. It is therefore necessary to
-// artificially hold the DCMs in reset for a few cycles after configuration. 
-// This is done using a 16-bit shift register. When the DCMs have locked, the 
-// <lock> output of this mnodule will go high. Until the DCMs are locked, the 
-// ouput clock timings are not guaranteed, so any logic driven by the 
-// <fpga_clock> should probably be held inreset until <locked> is high.
-//
-///////////////////////////////////////////////////////////////////////////////
-
-module ramclock(ref_clock, fpga_clock, ram0_clock, ram1_clock, 
-	        clock_feedback_in, clock_feedback_out, locked);
-   
-   input ref_clock;                 // Reference clock input
-   output fpga_clock;               // Output clock to drive FPGA logic
-   output ram0_clock, ram1_clock;   // Output clocks for each RAM chip
-   input  clock_feedback_in;        // Output to feedback trace
-   output clock_feedback_out;       // Input from feedback trace
-   output locked;                   // Indicates that clock outputs are stable
-   
-   wire  ref_clk, fpga_clk, ram_clk, fb_clk, lock1, lock2, dcm_reset;
-
-   ////////////////////////////////////////////////////////////////////////////
-   
-   //To force ISE to compile the ramclock, this line has to be removed.
-   //IBUFG ref_buf (.O(ref_clk), .I(ref_clock));
-	
-	assign ref_clk = ref_clock;
-   
-   BUFG int_buf (.O(fpga_clock), .I(fpga_clk));
-
-   DCM int_dcm (.CLKFB(fpga_clock),
-		.CLKIN(ref_clk),
-		.RST(dcm_reset),
-		.CLK0(fpga_clk),
-		.LOCKED(lock1));
-   // synthesis attribute DLL_FREQUENCY_MODE of int_dcm is "LOW"
-   // synthesis attribute DUTY_CYCLE_CORRECTION of int_dcm is "TRUE"
-   // synthesis attribute STARTUP_WAIT of int_dcm is "FALSE"
-   // synthesis attribute DFS_FREQUENCY_MODE of int_dcm is "LOW"
-   // synthesis attribute CLK_FEEDBACK of int_dcm  is "1X"
-   // synthesis attribute CLKOUT_PHASE_SHIFT of int_dcm is "NONE"
-   // synthesis attribute PHASE_SHIFT of int_dcm is 0
-   
-   BUFG ext_buf (.O(ram_clock), .I(ram_clk));
-   
-   IBUFG fb_buf (.O(fb_clk), .I(clock_feedback_in));
-   
-   DCM ext_dcm (.CLKFB(fb_clk), 
-		    .CLKIN(ref_clk), 
-		    .RST(dcm_reset),
-		    .CLK0(ram_clk),
-		    .LOCKED(lock2));
-   // synthesis attribute DLL_FREQUENCY_MODE of ext_dcm is "LOW"
-   // synthesis attribute DUTY_CYCLE_CORRECTION of ext_dcm is "TRUE"
-   // synthesis attribute STARTUP_WAIT of ext_dcm is "FALSE"
-   // synthesis attribute DFS_FREQUENCY_MODE of ext_dcm is "LOW"
-   // synthesis attribute CLK_FEEDBACK of ext_dcm  is "1X"
-   // synthesis attribute CLKOUT_PHASE_SHIFT of ext_dcm is "NONE"
-   // synthesis attribute PHASE_SHIFT of ext_dcm is 0
-
-   SRL16 dcm_rst_sr (.D(1'b0), .CLK(ref_clk), .Q(dcm_reset),
-		     .A0(1'b1), .A1(1'b1), .A2(1'b1), .A3(1'b1));
-   // synthesis attribute init of dcm_rst_sr is "000F";
-   
-
-   OFDDRRSE ddr_reg0 (.Q(ram0_clock), .C0(ram_clock), .C1(~ram_clock),
-		      .CE (1'b1), .D0(1'b1), .D1(1'b0), .R(1'b0), .S(1'b0));
-   OFDDRRSE ddr_reg1 (.Q(ram1_clock), .C0(ram_clock), .C1(~ram_clock),
-		      .CE (1'b1), .D0(1'b1), .D1(1'b0), .R(1'b0), .S(1'b0));
-   OFDDRRSE ddr_reg2 (.Q(clock_feedback_out), .C0(ram_clock), .C1(~ram_clock),
-		      .CE (1'b1), .D0(1'b1), .D1(1'b0), .R(1'b0), .S(1'b0));
-
-   assign locked = lock1 && lock2;
-   
-endmodule 
