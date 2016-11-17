@@ -16,13 +16,6 @@ module vram_display #(parameter XOFFSET = 0, YOFFSET = 0) (reset,clk,hcount,vcou
    wire [10:0] hcount_f = (x >= 1048) ? x - 1048 : (x + 2);
    wire [9:0] vcount_f = (x >= 1048) ? ((y == 805) ? 0 : y + 1) : y;
   
-//  wire [7:0] my_din, my_dout;
-//  wire [17:0] my_addr;
-//  wire my_wea;
-//  
-//  bram_ip mybram(clk, my_din, my_addr, my_wea, my_dout);
-
-  
 	reg [18:0] vram_addr;
 	always@(*) begin
 		if(hcount_f < 640 && vcount_f < 480) begin

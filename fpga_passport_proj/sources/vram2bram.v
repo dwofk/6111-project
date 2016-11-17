@@ -20,16 +20,15 @@ module vram_to_bram(
   wire [17:0] frame_bram_addr;
   wire frame_bram_wea;
   
-  reg switch_high = 0;
-  reg started = 0;
-  reg [17:0] my_addr_q = 0;
-  reg pixel_d = 0;
+  //reg switch_high = 0;
+  //reg started = 0;
+  //reg [17:0] my_addr_q = 0;
+  //reg pixel_d = 0;
   
   reg sw_ntsc_d;
   
   reg [17:0] write_counter = 0; 
   reg [17:0] read_counter = 0; 
-  reg bram_loaded = 0;
 
   reg [1:0] state = 0;
   
@@ -53,15 +52,15 @@ module vram_to_bram(
       read_counter <= 0;
       if (switch_rising) state <= CAPTURE_FRAME;
     end else begin
-      if (state == READ_FRAME) begin
+      if (state == READING_FRAME) begin
         if (frame_loaded && in_display) read_counter <= (read_counter == 18'd255999) ? 0 : read_counter+1'b1;
         if (switch_falling) state <= IDLE;
       end
       
-      if (state == WRITE_FRAME) begin
+      if (state == WRITING_FRAME) begin
         if (my_wea) write_counter <= write_counter+1'b1;
-        if (frame_loaded) state <= READ_FRAME;
-      end else if ((hcount==0) && (vcount==0)) state <= WRITE_FRAME;
+        if (frame_loaded) state <= READING_FRAME;
+      end else if ((hcount==0) && (vcount==0)) state <= WRITING_FRAME;
     end
   end
   

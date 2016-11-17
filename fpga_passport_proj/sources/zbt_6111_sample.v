@@ -259,7 +259,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    ////////////////////////////////////////////////////////////////////////////
    // Demonstration of ZBT RAM as video memory
 
-/*   // use FPGA's digital clock manager to produce a
+   // use FPGA's digital clock manager to produce a
    // 65MHz clock (actually 64.8MHz)
    wire clock_65mhz_unbuf,clock_65mhz;
    DCM vclk1(.CLKIN(clock_27mhz),.CLKFX(clock_65mhz_unbuf));
@@ -267,27 +267,28 @@ module zbt_6111_sample(beep, audio_reset_b,
    // synthesis attribute CLKFX_MULTIPLY of vclk1 is 24
    // synthesis attribute CLK_FEEDBACK of vclk1 is NONE
    // synthesis attribute CLKIN_PERIOD of vclk1 is 37
-   BUFG vclk2(.O(clock_65mhz),.I(clock_65mhz_unbuf));*/
+   BUFG vclk2(.O(clock_65mhz),.I(clock_65mhz_unbuf));
 
 //   wire clk = clock_65mhz;  // gph 2011-Nov-10
 
-   ////////////////////////////////////////////////////////////////////////////
+/*   ////////////////////////////////////////////////////////////////////////////
    // Demonstration of ZBT RAM as video memory
    // use FPGA's digital clock manager to produce a
    // 40MHz clock (actually 40.5MHz)
-   wire clock_40mhz_unbuf,clock_40mhz;
-   DCM vclk1(.CLKIN(clock_27mhz),.CLKFX(clock_40mhz_unbuf));
+//   wire clock_40mhz_unbuf,clock_40mhz;
+//   DCM vclk1(.CLKIN(clock_27mhz),.CLKFX(clock_40mhz_unbuf));
    // synthesis attribute CLKFX_DIVIDE of vclk1 is 2
    // synthesis attribute CLKFX_MULTIPLY of vclk1 is 3
    // synthesis attribute CLK_FEEDBACK of vclk1 is NONE
    // synthesis attribute CLKIN_PERIOD of vclk1 is 37
-   BUFG vclk2(.O(clock_40mhz),.I(clock_40mhz_unbuf));
+//   BUFG vclk2(.O(clock_40mhz),.I(clock_40mhz_unbuf));
    //wire clk = clock_40mhz;
+   */
 
 	wire locked;
 	//assign clock_feedback_out = 0; // gph 2011-Nov-10
   
-  wire clock_65mhz = clock_40mhz;
+//  wire clock_65mhz = clock_40mhz;
    
    ramclock rc(.ref_clock(clock_65mhz), .fpga_clock(clk),
 					.ram0_clock(ram0_clk), 
@@ -335,7 +336,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    wire [29:0] 	vr_pixel;
    wire [18:0] 	display_addr;
 
-   vram_display /*#(192,144)*/ vd1(reset,clk,hcount,vcount,vr_pixel,
+   vram_display #(100,100) /*#(192,144)*/ vd1(reset,clk,hcount,vcount,vr_pixel,
 		    display_addr,vram_read_data);
 
    // ADV7185 NTSC decoder interface code
@@ -440,12 +441,24 @@ module zbt_6111_sample(beep, audio_reset_b,
   wire [10:0] hcount_d1, hcount_d2;
   wire [9:0] vcount_d1, vcount_d2;
   
+  reg [23:0] vr_pixel_color_reg; // change here...
+  
+  always @(negedge clk) vr_pixel_color_reg <= vr_pixel_color; // change here...
+  
   rgb2hsv rgb2hsv_conv(.clock(clk), .reset(reset),
     .r(vr_pixel_color[23:16]), .b(vr_pixel_color[15:8]), .g(vr_pixel_color[7:0]),
     .h(pixel_hsv[23:16]), .s(pixel_hsv[15:8]), .v(pixel_hsv[7:0]));
+    
+  //wire is_green = (pixel_hsv[23:16] > 8'd40) && (pixel_hsv[23:16] < 8'd90);
+  
+  reg [23:0] pixel_hsv_in;
+  
+  always @(posedge clk) begin
+    pixel_hsv_in <= ((pixel_hsv[23:16] > 8'd60) && (pixel_hsv[23:16] < 8'd130)) ? 0 : pixel_hsv;
+  end
       
   hsv2rgb hsv2rgb_conv(.clk(clk), .rst(reset),
-      .h(pixel_hsv[23:16]), .s(pixel_hsv[15:8]), .v(pixel_hsv[7:0]),
+      .h(pixel_hsv_in[23:16]), .s(pixel_hsv_in[15:8]), .v(pixel_hsv_in[7:0]),
       .r(pixel_rgb[23:16]), .g(pixel_rgb[15:8]), .b(pixel_rgb[7:0]));
       
   //delay#(.DELAY(32), .SIZE(24)) hcount_delay1(.clk(clk), .din(vr_pixel_color), .dout(pixel_rgb));
@@ -461,9 +474,11 @@ module zbt_6111_sample(beep, audio_reset_b,
   wire in_display_rd = hcount < 640 && vcount < 400;
   
   wire [7:0] my_din, my_dout;
-  wire [17:0] my_addr;
-  wire my_wea;
-  
+//  wire [17:0] my_addr;
+
+  reg [17:0] my_addr = 0;
+//  wire my_wea;
+  reg my_wea;
   reg switch_high = 0;
   reg started = 0;
   reg started_wr = 0;
@@ -489,18 +504,22 @@ module zbt_6111_sample(beep, audio_reset_b,
   reg [31*18-1:0] my_addr_shift_reg = 0;
   reg [31:0] my_wea_shift_reg = 0;
   
-  //bram_ip mybram(clk, my_din, my_addr_shift_reg[31*18-1:30*18], my_wea_shift_reg[31], my_dout);
-  bram_ip mybram(clk, my_din, my_addr, my_wea, my_dout);
+  //bram_ip mybram(clk, my_din, my_addr, my_wea_shift_reg[0], my_dout);  
+  bram_ip mybram(clk, my_din, my_addr_shift_reg[31*18-1:30*18], my_wea_shift_reg[31], my_dout);
+  //bram_ip mybram(clk, my_din, my_addr, my_wea, my_dout);
   
-  assign my_wea = !frame_loaded && started && in_display_wr;  
-  assign my_addr = (!frame_loaded) ? write_counter : read_counter;
+////  assign my_wea = !frame_loaded && started && in_display_wr;  
+//  assign my_addr = (!frame_loaded) ? write_counter : read_counter;
   
-  //assign my_din = {pixel_rgb[23:21],pixel_rgb[15:13],pixel_rgb[7:6]};
-  assign my_din = {vr_pixel_color[23:21],vr_pixel_color[15:13],vr_pixel_color[7:6]};
+  assign my_din = {pixel_rgb[23:21],pixel_rgb[15:13],pixel_rgb[7:6]};
+  //assign my_din = {vr_pixel_color[23:21],vr_pixel_color[15:13],vr_pixel_color[7:6]};
   
   always @(posedge clk) begin
     sw_ntsc_d <= sw_ntsc;
-    
+
+  my_addr <= (!frame_loaded) ? write_counter : read_counter;
+  my_wea <= !frame_loaded && started && in_display_wr;  
+  
     my_wea_shift_reg <= {my_wea_shift_reg[31:1], my_wea};
     my_addr_shift_reg <= {my_addr_shift_reg[31*18-1:18], my_addr};
     
@@ -528,20 +547,47 @@ module zbt_6111_sample(beep, audio_reset_b,
   //delay#(.DELAY(31), .SIZE(1)) hs_delay1(.clk(clk), .din(hs), .dout(hs_d));
   //delay#(.DELAY(31), .SIZE(1)) vs_delay1(.clk(clk), .din(vs), .dout(vs_d));
   //delay#(.DELAY(31), .SIZE(1)) b_delay1(.clk(clk), .din(b), .dout(b_d));
+  
+  parameter YCRCB2RGB_PD = 4;
+  parameter RGB2HSV_PD = 23;
+  parameter HSV2RGB_PD = 10;
+  
+  parameter SHIFT_DELAY = YCRCB2RGB_PD + RGB2HSV_PD + HSV2RGB_PD + 1;
+  
+  reg [0:0] hsync_shift_reg[SHIFT_DELAY-1:0];
+  reg [0:0] vsync_shift_reg[SHIFT_DELAY-1:0];
+  reg [0:0] blank_shift_reg[SHIFT_DELAY-1:0];
+  
+  integer i;
 
-   always @(posedge clk)
-     begin
-		pixel <= sw_ntsc ? 0 : (in_display_rd ? {my_dout[7:5],5'd0,my_dout[4:2],5'd0,my_dout[1:0],6'd0} : 24'hFFFFFF);
+  always @(posedge clk) begin
+		//pixel <= sw_ntsc ? 0 : (in_display_rd ? {my_dout[7:5],5'd0,my_dout[4:2],5'd0,my_dout[1:0],6'd0} : 24'hFFFFFF);
+    pixel <= sw_ntsc ? 0 : pixel_rgb;
     //pixel <= sw_ntsc ? 0 : vr_pixel_color;
 		//pixel <= vr_pixel_color;
 		//pixel <= hope ? 0 : vr_pixel_color;
-		b <= blank;
-		hs <= hsync;
-		vs <= vsync;
-		{hsync_delay[2],hsync_delay[1],hsync_delay[0]} <= {hsync_delay[1],hsync_delay[0], hs};
-		{vsync_delay[2],vsync_delay[1],vsync_delay[0]} <= {vsync_delay[1],vsync_delay[0], vs};
-		{blank_delay[2],blank_delay[1],blank_delay[0]} <= {blank_delay[1],blank_delay[0], b};
-     end
+		//b <= blank;
+		//hs <= hsync;
+		//vs <= vsync;
+		//{hsync_delay[2],hsync_delay[1],hsync_delay[0]} <= {hsync_delay[1],hsync_delay[0], hs};
+		//{vsync_delay[2],vsync_delay[1],vsync_delay[0]} <= {vsync_delay[1],vsync_delay[0], vs};
+		//{blank_delay[2],blank_delay[1],blank_delay[0]} <= {blank_delay[1],blank_delay[0], b};
+    
+    //hsync_shift_reg[31:0] <= {hsync_shift_reg[31:1], hsync_delay[2]};
+    //vsync_shift_reg[31:0] <= {vsync_shift_reg[31:1], vsync_delay[2]};
+    //blank_shift_reg[31:0] <= {blank_shift_reg[31:1], blank_delay[2]};
+
+    
+    hsync_shift_reg[0] <= hsync; //_delay[2];
+    vsync_shift_reg[0] <= vsync; //_delay[2];
+    blank_shift_reg[0] <= blank; //_delay[2];
+    
+    for (i=1; i<SHIFT_DELAY; i=i+1) begin
+      hsync_shift_reg[i] <= hsync_shift_reg[i-1];
+      vsync_shift_reg[i] <= vsync_shift_reg[i-1];
+      blank_shift_reg[i] <= blank_shift_reg[i-1];
+    end
+  end
 
    // VGA Output.  In order to meet the setup and hold times of the
    // AD7125, we send it ~clk.
@@ -550,9 +596,9 @@ module zbt_6111_sample(beep, audio_reset_b,
    assign vga_out_blue = pixel[7:0];
    assign vga_out_sync_b = 1'b1;    // not used
    assign vga_out_pixel_clock = ~clk;
-   assign vga_out_blank_b = ~blank_delay[2];
-   assign vga_out_hsync = hsync_delay[2];
-   assign vga_out_vsync = vsync_delay[2];
+   assign vga_out_blank_b = ~blank_shift_reg[SHIFT_DELAY-1];
+   assign vga_out_hsync = hsync_shift_reg[SHIFT_DELAY-1];
+   assign vga_out_vsync = vsync_shift_reg[SHIFT_DELAY-1];
 
    // debugging
    //assign led = ~{vram_addr[18:13],reset,switch[0]};

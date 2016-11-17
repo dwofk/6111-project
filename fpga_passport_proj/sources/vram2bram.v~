@@ -10,8 +10,9 @@ module vram_to_bram(
   );
   
   parameter IDLE = 0; // when focus switch is off
-  parameter WRITING_FRAME = 1;
-  parameter READING_FRAME = 2;
+  parameter CAPTURE_FRAME = 1;
+  parameter WRITING_FRAME = 2;
+  parameter READING_FRAME = 3;
   
   assign in_display = hcount < 640 && vcount < 400;
   
@@ -29,34 +30,38 @@ module vram_to_bram(
   reg [17:0] write_counter = 0; 
   reg [17:0] read_counter = 0; 
   reg bram_loaded = 0;
+
+  reg [1:0] state = 0;
   
   wire frame_loaded = (write_counter == 18'd255999);
-  
-  bram_ip mybram(clk, my_din, my_addr, my_wea, my_dout);
 
-  assign my_wea = !frame_loaded && started && in_display;  
-  assign my_addr = (!frame_loaded) ? write_counter : read_counter;
+  wire switch_rising = sw_ntsc_d && !sw_ntsc;
+  wire switch_falling = !sw_ntsc_d && sw_ntsc;
   
-  
+  bram_ip frame_bram(clk, my_din, frame_bram_addr, frame_bram_wea, frame_bram_dout);
+
+  // inputs to BRAM instantiation
   assign my_din = {vr_pixel_color[23:21],vr_pixel_color[15:13],vr_pixel_color[7:6]};
+  assign frame_bram_wea = !frame_loaded && started && in_display;  
+  assign frame_bram_addr = (!frame_loaded) ? write_counter : read_counter;
 
   always @(posedge clk) begin
-    //if (!load_bram && stored && (my_addr == 0)) load_bram <= 1'b1;
-    //bram_counter <= bram_loaded ? bram_counter : bram_counter+1'b1;
     sw_ntsc_d <= sw_ntsc;
     
-    if (!switch_high) begin
+    if (state == IDLE) begin
       write_counter <= 0;
       read_counter <= 0;
-      if (sw_ntsc_d && !sw_ntsc) switch_high <= 1;
+      if (switch_rising) state <= CAPTURE_FRAME;
     end else begin
-      if (frame_loaded && in_display) read_counter <= (read_counter == 18'd255999) ? 0 : read_counter+1'b1;
-      if (!sw_ntsc_d && sw_ntsc) switch_high <= 0;
+      if (state == READ_FRAME) begin
+        if (frame_loaded && in_display) read_counter <= (read_counter == 18'd255999) ? 0 : read_counter+1'b1;
+        if (switch_falling) state <= IDLE;
+      end
       
-      if (started) begin
+      if (state == WRITE_FRAME) begin
         if (my_wea) write_counter <= write_counter+1'b1;
-        if (frame_loaded) started <= 0;
-      end else if ((hcount==0) && (vcount==0)) started <= 1;
+        if (frame_loaded) state <= READ_FRAME;
+      end else if ((hcount==0) && (vcount==0)) state <= WRITE_FRAME;
     end
   end
   
