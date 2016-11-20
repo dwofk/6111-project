@@ -1,0 +1,128 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date:    22:29:17 11/17/2016 
+// Design Name: 
+// Module Name:    pixel_out 
+// Project Name: 
+// Target Devices: 
+// Tool versions: 
+// Description: 
+//
+// Dependencies: 
+//
+// Revision: 
+// Revision 0.01 - File Created
+// Additional Comments: 
+//
+//////////////////////////////////////////////////////////////////////////////////
+module pixel_out(
+    input clk, 
+    input rst,
+    //input [1:0] editor_fsm_state,
+    input sw_ntsc,
+    input [29:0] vr_pixel,
+    input blank,
+    input hsync,
+    input vsync,
+    output [23:0] pixel_out,
+    output blank_out,
+    output hsync_out,
+    output vsync_out
+  );
+  
+  // Delay Parameters
+  parameter YCRCB2RGB_DLY = 4;
+  parameter RGB2HSV_DLY = 23;
+  parameter THRESHOLD_DLY = 1;
+  parameter HSV2RGB_DLY = 10;
+  
+  parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + HSV2RGB_DLY;
+  parameter COLOR_PIXEL_DLY = RGB2HSV_DLY + THRESHOLD_DLY;
+
+  // YCrCb to RGB Conversion
+  wire [23:0] vr_pixel_color;
+  
+  ycrcb2rgb ycrcb2rgb_conv(
+    .Y    (vr_pixel[29:20]),
+    .Cr   (vr_pixel[19:10]), 
+    .Cb   (vr_pixel[9:0]),
+    .R    (vr_pixel_color[23:16]), 
+    .G    (vr_pixel_color[15:8]), 
+    .B    (vr_pixel_color[7:0]),
+    .clk  (clk), 
+    .rst  (1'b0)
+   );
+  
+  // RGB to HSV Conversion
+  wire [23:0] pixel_hsv_out;
+  
+  rgb2hsv rgb2hsv_conv(
+    .clock(clk), 
+    .reset(reset),
+    .r(vr_pixel_color[23:16]), 
+    .b(vr_pixel_color[15:8]), 
+    .g(vr_pixel_color[7:0]),
+    .h(pixel_hsv_out[23:16]), 
+    .s(pixel_hsv_out[15:8]), 
+    .v(pixel_hsv_out[7:0])
+  );
+  
+  // HSV to RGB Conversion
+  wire [23:0] pixel_hsv_in;
+  wire [23:0] pixel_rgb_out;
+  
+  hsv2rgb hsv2rgb_conv(
+    .clk(clk), 
+    .rst(reset),
+    .h(pixel_hsv_in[23:16]), 
+    .s(pixel_hsv_in[15:8]), 
+    .v(pixel_hsv_in[7:0]),
+    .r(pixel_rgb_out[23:16]), 
+    .g(pixel_rgb_out[15:8]), 
+    .b(pixel_rgb_out[7:0])
+  );
+  
+  // Thresholding & Compositing
+  reg [23:0] pixel_hsv_in_q;
+  assign pixel_hsv_in = pixel_hsv_in_q;
+  
+  always @(posedge clk) pixel_hsv_in_q <= hsv_pixel_out;
+  
+  // Delay Sync Signals
+  reg [0:0] hsync_shift_reg[SHIFT_DELAY-1:0];
+  reg [0:0] vsync_shift_reg[SHIFT_DELAY-1:0];
+  reg [0:0] blank_shift_reg[SHIFT_DELAY-1:0];  
+
+  integer i;
+  
+  always @(posedge clk) begin
+    hsync_shift_reg[0] <= hsync;
+    vsync_shift_reg[0] <= vsync;
+    blank_shift_reg[0] <= blank;
+    
+    for (i=1; i<SHIFT_DELAY; i=i+1) begin
+      hsync_shift_reg[i] <= hsync_shift_reg[i-1];
+      vsync_shift_reg[i] <= vsync_shift_reg[i-1];
+      blank_shift_reg[i] <= blank_shift_reg[i-1];
+    end
+  end
+  
+  // Select Output Pixel
+  reg [23:0] pixel_out_q;
+  
+  always @(posedge clk) begin
+    //pixel_out_q <= sw_ntsc ? 0 : pixel_hsv_out;
+    //pixel_out_q <= sw_ntsc ? 0 : pixel_rgb_out;
+    pixel_out_q <= sw_ntsc ? 0 : vr_pixel_color;
+  end  
+  
+  // Output Signal Assignments
+  assign pixel_out = pixel_out_q;
+  assign blank_out = blank_shift_reg[SHIFT_DELAY-1];
+  assign hsync_out = hsync_shift_reg[SHIFT_DELAY-1];
+  assign vsync_out = vsync_shift_reg[SHIFT_DELAY-1];
+
+endmodule

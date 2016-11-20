@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////////
+/*///////////////////////////////////////////////////////////////////////////////
 // xvga: Generate XVGA display signals (1024 x 768 @ 60Hz)
 
 module xvga(vclock,hcount,vcount,hsync,vsync,blank);
@@ -44,10 +44,10 @@ module xvga(vclock,hcount,vcount,hsync,vsync,blank);
 
       blank <= next_vblank | (next_hblank & ~hreset);
    end
-endmodule
+endmodule*/
 
 
-/*///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 // xvga: Generate XVGA display signals (800 x 600 @ 60Hz)
 
 module xvga(vclock,hcount,vcount,hsync,vsync,blank);
@@ -93,4 +93,4 @@ module xvga(vclock,hcount,vcount,hsync,vsync,blank);
 
       blank <= next_vblank | (next_hblank & ~hreset);
    end
-endmodule*/
+endmodule

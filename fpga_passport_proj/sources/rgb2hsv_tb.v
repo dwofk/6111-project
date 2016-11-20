@@ -148,9 +148,9 @@ module rgb2hsv_tb;
 
     #10;
     
-    r = 87;
-		g = 149;
-		b = 222;
+    r = 0;
+		g = 0;
+		b = 255;
  
 		// Add stimulus here
     #1000 $stop;

@@ -1,31 +1,29 @@
-module vram_to_bram(
+module bram_ifc(
     input clock,
-    input focus_switch,     // stores still frame in bram
+    input reset,
+    input store_frame,
     input [10:0] hcount,
     input [9:0] vcount,
-    input [23:0] vr_pixel_color,
-    output [7:0] bram_dout,
-    output in_display,
-    output 
+    input [23:0] pixel_out,
+    output [7:0] bram_dout
   );
   
-  parameter IDLE = 0; // when focus switch is off
+  parameter IDLE = 0;
   parameter CAPTURE_FRAME = 1;
   parameter WRITING_FRAME = 2;
   parameter READING_FRAME = 3;
   
-  assign in_display = hcount < 640 && vcount < 400;
+  // Edge Detection
+  reg store_frame_d;
+  always @(posedge clock) store_frame_d <= store_frame;
+  //wire store_frame_rising
+
+  
+  wire in_display = hcount < 640 && vcount < 400;
   
   wire [7:0] frame_bram_din, frame_bram_dout;
   wire [17:0] frame_bram_addr;
   wire frame_bram_wea;
-  
-  //reg switch_high = 0;
-  //reg started = 0;
-  //reg [17:0] my_addr_q = 0;
-  //reg pixel_d = 0;
-  
-  reg sw_ntsc_d;
   
   reg [17:0] write_counter = 0; 
   reg [17:0] read_counter = 0; 
@@ -34,18 +32,17 @@ module vram_to_bram(
   
   wire frame_loaded = (write_counter == 18'd255999);
 
-  wire switch_rising = sw_ntsc_d && !sw_ntsc;
-  wire switch_falling = !sw_ntsc_d && sw_ntsc;
+  wire switch_rising = !store_frame_d && store_frame;
+  wire switch_falling = store_frame_d && !store_frame;
   
   bram_ip frame_bram(clk, my_din, frame_bram_addr, frame_bram_wea, frame_bram_dout);
 
   // inputs to BRAM instantiation
-  assign my_din = {vr_pixel_color[23:21],vr_pixel_color[15:13],vr_pixel_color[7:6]};
-  assign frame_bram_wea = !frame_loaded && started && in_display;  
+  assign my_din = {pixel_out[23:21],pixel_out[15:13],pixel_out[7:6]};
+  assign frame_bram_wea = !frame_loaded && (state == WRITING_FRAME) && in_display;  
   assign frame_bram_addr = (!frame_loaded) ? write_counter : read_counter;
 
-  always @(posedge clk) begin
-    sw_ntsc_d <= sw_ntsc;
+  always @(posedge clock) begin
     
     if (state == IDLE) begin
       write_counter <= 0;
@@ -58,9 +55,9 @@ module vram_to_bram(
       end
       
       if (state == WRITING_FRAME) begin
-        if (my_wea) write_counter <= write_counter+1'b1;
+        if (frame_bram_wea) write_counter <= write_counter+1'b1;
         if (frame_loaded) state <= READING_FRAME;
-      end else if ((hcount==0) && (vcount==0)) state <= WRITING_FRAME;
+      end else if ((state == CAPTURE_FRAME) && (hcount==100) && (vcount==100)) state <= WRITING_FRAME;
     end
   end
   
