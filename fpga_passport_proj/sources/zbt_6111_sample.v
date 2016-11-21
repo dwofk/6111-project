@@ -336,7 +336,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    wire [29:0] 	vr_pixel;
    wire [18:0] 	display_addr;
 
-   vram_display #(100,100) /*#(192,144)*/ vd1(reset,clk,hcount,vcount,vr_pixel,
+   vram_display #(0,0) /*#(192,144)*/ vd1(reset,clk,hcount,vcount,vr_pixel,
 		    display_addr,vram_read_data);
 
    // ADV7185 NTSC decoder interface code
@@ -362,26 +362,50 @@ module zbt_6111_sample(beep, audio_reset_b,
    ntsc_to_zbt n2z (clk, tv_in_line_clock1, fvh, dv, ycrcb[29:0],
 		    ntsc_addr, ntsc_data, ntsc_we);
         
-   ////////////////////////////////////////////////////////////////////////////
-   //
-   // Input Buttons & Switches
-   //
-   ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // Input Buttons & Switches
+  //
+  ////////////////////////////////////////////////////////////////////////////
   
-   wire sw_ntsc, store_frame, enhance_en;
-   wire up, down, left, right, center;
+  wire sw_ntsc, enhance_en, filters_en, store_bram;   // editing & storage
+  wire text_en, graphics_en, move_sw, custom_text_en; // text & graphics
+  wire up, down, left, right, enter;
+  wire select0, select1, select2, select3;
   
-   debounce db2(.reset(reset),.clk(clock_65mhz),.noisy(~switch[7]),.clean(sw_ntsc));
-   debounce db3(.reset(reset),.clk(clock_65mhz),.noisy(switch[5]),.clean(store_frame));
-   debounce db4(.reset(reset),.clk(clock_65mhz),.noisy(switch[6]),.clean(enhance_en));
+  debounce db2(.reset(reset),.clk(clock_65mhz),.noisy(~switch[7]),.clean(sw_ntsc));
+  debounce db3(.reset(reset),.clk(clock_65mhz),.noisy(switch[6]),.clean(enhance_en));
+  debounce db4(.reset(reset),.clk(clock_65mhz),.noisy(switch[5]),.clean(filters_en));
+  debounce db5(.reset(reset),.clk(clock_65mhz),.noisy(switch[4]),.clean(text_en));
+  debounce db6(.reset(reset),.clk(clock_65mhz),.noisy(switch[3]),.clean(graphics_en));
+  debounce db7(.reset(reset),.clk(clock_65mhz),.noisy(switch[2]),.clean(move_sw));
+  debounce db8(.reset(reset),.clk(clock_65mhz),.noisy(switch[1]),.clean(custom_text_en));
+  debounce db9(.reset(reset),.clk(clock_65mhz),.noisy(switch[0]),.clean(store_bram));
+
+  debounce db10(.reset(reset),.clk(clock_65mhz),.noisy(~button_up),.clean(up));
+  debounce db11(.reset(reset),.clk(clock_65mhz),.noisy(~button_down),.clean(down));
+  debounce db12(.reset(reset),.clk(clock_65mhz),.noisy(~button_left),.clean(left));
+  debounce db13(.reset(reset),.clk(clock_65mhz),.noisy(~button_right),.clean(right));
+  debounce db14(.reset(reset),.clk(clock_65mhz),.noisy(~button_enter),.clean(enter));
    
-   debounce db5(.reset(reset),.clk(clock_65mhz),.noisy(~button_up),.clean(up));
-   debounce db6(.reset(reset),.clk(clock_65mhz),.noisy(~button_down),.clean(down));
-   debounce db7(.reset(reset),.clk(clock_65mhz),.noisy(~button_left),.clean(left));
-   debounce db8(.reset(reset),.clk(clock_65mhz),.noisy(~button_right),.clean(right));
-   debounce db9(.reset(reset),.clk(clock_65mhz),.noisy(~button_enter),.clean(center));
-   
-   ////////////////////////////////////////////////////////////////////////////
+  debounce db15(.reset(reset),.clk(clock_65mhz),.noisy(~button0),.clean(select0));
+  debounce db16(.reset(reset),.clk(clock_65mhz),.noisy(~button1),.clean(select1));
+  debounce db17(.reset(reset),.clk(clock_65mhz),.noisy(~button2),.clean(select2));
+  debounce db18(.reset(reset),.clk(clock_65mhz),.noisy(~button3),.clean(select3));
+
+  wire move_text_en;      // when move_sw is low
+  wire move_graphics_en;  // when move_sw is high
+  assign {move_text_en, move_graphics_en} = {~move_sw, move_sw};
+  
+  wire sw_ntsc_n = ~sw_ntsc;
+  
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // Edge Detection
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  
+  ////////////////////////////////////////////////////////////////////////////
 
    wire [35:0] 	write_data = ntsc_data;
 	//address is either chosen by camera or display
@@ -389,12 +413,30 @@ module zbt_6111_sample(beep, audio_reset_b,
 	//write enable when in write mode and camera wants to write
    assign 	vram_we = sw_ntsc & ntsc_we;
    assign 	vram_write_data = write_data;
-   
-   ////////////////////////////////////////////////////////////////////////////
-   //
-   // Output Pixel
-   //
-   ////////////////////////////////////////////////////////////////////////////
+  
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // Main FSM
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  
+  wire [2:0] fsm_state;
+  
+  main_fsm fsm1(
+    .clk        (clk),
+    .rst        (reset),
+    //.fsm_reset  (fsm_reset),
+    .sw_ntsc    (sw_ntsc_n),
+    .enter      (enter),
+    .store_bram (store_bram),
+    .fsm_state  (fsm_state)
+  );
+  
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // Output Pixel
+  //
+  ////////////////////////////////////////////////////////////////////////////
 
    // select output pixel data
    //reg [23:0] pixel=0;
@@ -477,42 +519,139 @@ module zbt_6111_sample(beep, audio_reset_b,
   wire         vsync_out;
   wire [7:0]  bram_dout;
   
+  wire [1:0] bram_state;
+  
   pixel_sel pixel_sel1(
-    .clk      (clk),
-    .rst      (reset),
-    .sw_ntsc  (sw_ntsc),
-    .store_frame (store_frame),
-    .enhance_en  (enhance_en),
-    .up       (up),
-    .down     (down),
-    .left     (left),
-    .right    (right),
-    .center   (center),
-    .vr_pixel (vr_pixel),
-    .hcount   (hcount),
-    .vcount   (vcount),
-    .blank    (blank),
-    .hsync    (hsync),
-    .vsync    (vsync),
-    .bram_dout (bram_dout),
-    .pixel_out  (pixel_out),
-    .blank_out  (blank_out),
-    .hsync_out  (hsync_out),
-    .vsync_out  (vsync_out)
+    .clk          (clk),
+    .reset        (reset),
+    .bram_state   (bram_state),
+    // user switch inputs
+    .sw_ntsc      (sw_ntsc),
+    .store_bram   (store_bram),
+    .enhance_en   (enhance_en),
+    .filters_en   (filters_en),
+    // user button inputs
+    .up           (up),
+    .down         (down),
+    .left         (left),
+    .right        (right),
+    //.center       (enter),
+    .select0      (select0),
+    .select1      (select1),
+    .select2      (select2),
+    .select3      (select3),
+    // pixel value inputs
+    .vr_pixel     (vr_pixel),
+    .bram_dout    (bram_dout),
+    // VGA timing signals
+    .hcount       (hcount),
+    .vcount       (vcount),
+    .blank        (blank),
+    .hsync        (hsync),
+    .vsync        (vsync),
+    // VGA outputs
+    .pixel_out    (pixel_out),
+    .blank_out    (blank_out),
+    .hsync_out    (hsync_out),
+    .vsync_out    (vsync_out)
   );
   
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // BRAM-Based Frame Buffer
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  
+  parameter H_OFFSET = 0;
+  parameter V_OFFSET = 0;
+  
+  parameter H_MAX_DISPLAY = 640;
+  parameter V_MAX_DISPLAY = 400;
+  
+  wire hcount_in_display = (hcount >= H_OFFSET) && (hcount < H_MAX_DISPLAY);
+  wire vcount_in_display = (vcount >= V_OFFSET) && (vcount < V_MAX_DISPLAY);
+  //wire in_display = hcount_in_display && vcount_in_display;
+  
+  //wire [1:0] bram_state;
+  
   bram_ifc frame_bram(
-    .clock      (clk),
-    .reset      (reset),
-    .store_frame (store_frame),
-    .hcount     (hcount),
-    .vcount     (vcount),
-    .pixel_out  (pixel_out),
-    .bram_dout  (bram_dout)
+    .clk         (clk),
+    .rst         (1'b0),
+    .store_bram (store_bram),
+    .hcount      (hcount),
+    .vcount      (vcount),
+    //.hoffset     (H_OFFSET),
+    //.voffset     (V_OFFSET),
+    //.in_display  (in_display),
+    .pixel_out   (pixel_out),
+    .bram_dout   (bram_dout),
+    .bram_state  (bram_state)
   );
+  
+//  localparam IDLE = 2'b00;
+//  localparam CAPTURE_FRAME = 2'b01;
+//  localparam WRITING_FRAME = 2'b10;
+//  localparam READING_FRAME = 2'b11;
+//  
+//  reg [1:0] state_q = 2'b00;
+//  assign bram_state = state_q;
+//  
+//  reg store_bram_d_q; // delayed store_bram signal
+//  always @(posedge clk) store_bram_d_q <= store_bram;
+//  
+//  wire bram_sw_rising = !store_bram_d_q && store_bram;
+//  wire bram_sw_falling = store_bram_d_q && !store_bram;
+//  
+//  // read and write addresses
+//  reg [17:0] write_counter_q = 0; 
+//  reg [17:0] read_counter_q = 0; 
+//  
+//  wire in_display = hcount < 640 && vcount < 400;
+//  wire frame_loaded = (write_counter_q == 18'd255999);
+//  wire at_origin = (hcount==0) && (vcount==0);
+//  
+//  // BRAM signal declarations
+//  wire [7:0] frame_bram_din;
+//  wire [17:0] frame_bram_addr;
+//  wire frame_bram_wea;
+//  
+//  bram_ip frame_bram(clk, frame_bram_din, frame_bram_addr, frame_bram_wea, bram_dout);
+//  
+//  // inputs to BRAM instantiation
+//  assign frame_bram_din = {pixel_out[23:21],pixel_out[15:13],pixel_out[7:6]};		// 8-bit color
+//  assign frame_bram_wea = (state_q == WRITING_FRAME) && in_display && !frame_loaded;  
+//  assign frame_bram_addr = (state_q == WRITING_FRAME) ? write_counter_q : 
+//                            (state_q == READING_FRAME) ? read_counter_q : 0;
+//  
+//  always @(posedge clk) begin
+//    case (state_q)
+//      IDLE          : begin
+//                        write_counter_q <= 0;
+//                        read_counter_q <= 0;
+//                        state_q <= (bram_sw_rising) ? CAPTURE_FRAME : IDLE;
+//                       end
+//             
+//      CAPTURE_FRAME : state_q <= (at_origin) ? WRITING_FRAME : CAPTURE_FRAME;
+//      
+//      WRITING_FRAME : begin
+//                        if (frame_bram_wea) write_counter_q <= write_counter_q+1'b1;
+//                        state_q <= (frame_loaded) ? READING_FRAME : WRITING_FRAME;
+//                      end
+//      
+//      READING_FRAME : begin
+//                        if (in_display) read_counter_q <= (read_counter_q == 18'd255999) ? 0 : read_counter_q+1'b1;
+//                        state_q <= (bram_sw_falling) ? IDLE : READING_FRAME;
+//                      end
+//    endcase
+//  end
+  
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // VGA Output
+  //
+  ////////////////////////////////////////////////////////////////////////////
 
-   // VGA Output.  In order to meet the setup and hold times of the
-   // AD7125, we send it ~clk.
+   // In order to meet the setup and hold times of the AD7125, we send it ~clk.
    assign vga_out_red = pixel_out[23:16];
    assign vga_out_green = pixel_out[15:8];
    assign vga_out_blue = pixel_out[7:0];
@@ -526,13 +665,16 @@ module zbt_6111_sample(beep, audio_reset_b,
 
    // debugging
    //assign led = ~{vram_addr[18:13],reset,switch[0]};
-   assign led = ~{6'b000000,reset,switch[0]};
+   assign led = ~{bram_state,store_bram,fsm_state,1'b0,switch[0]};
 
 	 //displayed on hex display for debugging
-   always @(posedge clk)
+   always @(posedge clk) begin
      // dispdata <= {vram_read_data,9'b0,vram_addr};
-     dispdata <= hcount;
-
+     //dispdata <= hcount;
+     dispdata[63:32] <= bram_dout;
+     //dispdata[31:0] <= frame_bram_din;
+   end
+   
 endmodule
 
 

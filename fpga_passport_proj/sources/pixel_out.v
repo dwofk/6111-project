@@ -19,27 +19,46 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module pixel_sel(
-    input clk, 
-    input rst,
+    input clk, reset,
+    input [1:0] bram_state,
     //input [1:0] editor_fsm_state,
+    // user switch inputs
     input sw_ntsc,
-    input store_frame,
+    input store_bram,
     input enhance_en,
-    input up, down,
-    input left, right,
-    input center,
+    input filters_en,
+    //input [1:0] filter,
+    // user button inputs
+    input up, down, left, right,
+    input select0, select1, select2, select3,
+    // pixel value inputs
     input [29:0] vr_pixel,
+    input [7:0] bram_dout,
+    // VGA timing signals
     input [10:0] hcount,
     input [9:0] vcount,
     input blank,
     input hsync,
     input vsync,
-    input [7:0] bram_dout,
+    // VGA outputs
     output [23:0] pixel_out,
     output blank_out,
     output hsync_out,
     output vsync_out
   );
+  
+  // BRAM states
+  localparam IDLE = 2'b00;
+  localparam CAPTURE_FRAME = 2'b01;
+  localparam WRITING_FRAME = 2'b10;
+  localparam READING_FRAME = 2'b11;
+  
+  wire [1:0] selected_filter;  // used in determining filter module latency
+  wire [23:0] vga_rgb_out;     // connected to VGA pixel output
+  
+  // Filter Types
+  parameter SEPIA = 2'b00;
+  parameter INVERT = 2'b01;
   
   // Delay Parameters
   parameter YCRCB2RGB_DLY = 4;
@@ -48,9 +67,18 @@ module pixel_sel(
   parameter HSV2RGB_DLY = 10;
   parameter ENHANCE_DLY = 1;
   
-  parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + HSV2RGB_DLY + ENHANCE_DLY;
+  parameter INVERT_DLY = 1;
+  parameter SEPIA_DLY = 4;
+  
+  //parameter FILTER_DLY = (!filters_en) ? 0 :
+  //                         (selected_filter == INVERT) ? INVERT_DLY : SEPIA_DLY;
+  
+  parameter FILTER_DLY = SEPIA_DLY;
+  
   //parameter COLOR_PIXEL_DLY = RGB2HSV_DLY + THRESHOLD_DLY;
-
+  parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + 
+                          HSV2RGB_DLY + ENHANCE_DLY + SEPIA_DLY;
+                          
   // YCrCb to RGB Conversion
   wire [23:0] vr_pixel_color;
   
@@ -102,18 +130,36 @@ module pixel_sel(
   
   // Image Enhancement
   enhance enhance1(
-    .clk(clk),
-    .rst(reset),
-	 .vsync(vsync),
-    .enhance_en(enhance_en),
-    .inc_saturation(up),
-    .dec_saturation(down),
-    .inc_brightness(right),
-    .dec_brightness(left),
-    .reset_enhance(center),
-    .hsv_in(pixel_hsv_out),
-    .hsv_out(pixel_hsv_in)
+    .clk            (clk),
+    .rst            (reset),
+	  .vsync          (vsync),
+    .enhance_en     (enhance_en),
+    .inc_saturation (up),
+    .dec_saturation (down),
+    .inc_brightness (right),
+    .dec_brightness (left),
+    //.reset_enhance  (center),
+    .hsv_in         (pixel_hsv_out),
+    .hsv_out        (pixel_hsv_in)
   );
+  
+  // Filter Effects
+  wire [23:0] pixel_filtered;
+  
+  filters filters1(
+    .clk            (clk),
+    .rst            (reset),
+    .filters_en     (filters_en),
+    .select0        (select0),
+    .select1        (select1),
+    .select2        (select2),
+    .select3        (select3),
+    .rgb_in         (pixel_rgb_out),
+    .rgb_out        (pixel_filtered),
+    .filter         (selected_filter)
+  );
+  
+  assign vga_rgb_out = pixel_filtered;
   
   // Delay Sync Signals
   reg [0:0] hsync_shift_reg[SYNC_DLY-1:0];
@@ -143,7 +189,10 @@ module pixel_sel(
   
   always @(posedge clk) begin
     //pixel_out_q <= sw_ntsc ? 0 : pixel_hsv_out;
-    pixel_out_q <= sw_ntsc ? 0 : store_frame ? (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF) : pixel_rgb_out;
+    //pixel_out_q <= sw_ntsc ? 0 : store_bram ? (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF) : vga_rgb_out;
+    if (bram_state == READING_FRAME) pixel_out_q <= in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF;
+    else pixel_out_q <= sw_ntsc ? 0 : vga_rgb_out;
+    //pixel_out_q <= sw_ntsc ? 0 : (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF);
     //pixel_out_q <= sw_ntsc ? 0 : vr_pixel_color;
   end  
   

@@ -26,7 +26,7 @@ module enhance(
     input dec_saturation,
     input inc_brightness,
     input dec_brightness,
-    input reset_enhance,
+    //input reset_enhance,
     input [23:0] hsv_in,
     output reg [23:0] hsv_out
     //output saturation_pos_offset,
@@ -77,6 +77,8 @@ module enhance(
   
   wire vsync_falling;
   assign vsync_falling = (vsync !== vsync_q) && (vsync === 1'b0);
+  
+  wire reset_enhance = inc_saturation && dec_saturation && inc_brightness && dec_brightness;
   
   // adjust S/V offsets based on user input
   always @(posedge clk) begin
