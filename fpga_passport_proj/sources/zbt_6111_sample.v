@@ -567,7 +567,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    always @(posedge clk) begin
      // dispdata <= {vram_read_data,9'b0,vram_addr};
      //dispdata <= hcount;
-     dispdata[63:56] <= 0;
+     dispdata[63:56] <= {5'b00000, fsm_state};
      dispdata[55:24] <= {thr_range, h_thr, s_thr, v_thr};
      dispdata[23:0] <= {1'b0, text_x_pos, 2'b00, text_y_pos};
    end

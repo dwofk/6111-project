@@ -149,6 +149,8 @@ module pixel_sel(
   wire [23:0] hsv_chr_out;
   //wire [7:0] h_thr, s_thr, v_thr;
   
+  wire adjust_thr_en = (fsm_state == SEL_BKGD);
+  
   chroma_key chroma_key1(
     .clk              (clk),
     .rst              (reset),
@@ -158,6 +160,7 @@ module pixel_sel(
     .down             (down),
     .left             (left),
     .right            (right),
+    .adjust_thr_en    (adjust_thr_en),
     .range            (thr_range),
     .h_nom            (h_thr),
     .s_nom            (s_thr),
@@ -170,38 +173,42 @@ module pixel_sel(
   assign chr_pixel_out = (chroma_key_match) ? 24'hD5FFFF : hsv_chr_out;
   
   // Image Enhancement
-  wire enhance_enable = enhance_en && (fsm_state == COLOR_EDITS);
+  //wire enhance_enable = enhance_en && (fsm_state == COLOR_EDITS);
+  wire enhance_user_in_en = enhance_en && (fsm_state == COLOR_EDITS);
   
   enhance enhance1(
-    .clk            (clk),
-    .rst            (reset),
-	  .vsync          (vsync),
-    //.fsm_state      (fsm_state),
-    .enhance_en     (enhance_enable),
-    .inc_saturation (up),
-    .dec_saturation (down),
-    .inc_brightness (right),
-    .dec_brightness (left),
-    //.reset_enhance  (center),
-    .hsv_in         (chr_pixel_out),
-    .hsv_out        (pixel_hsv_in)
+    .clk                (clk),
+    .rst                (reset),
+	  .vsync              (vsync),
+    //.fsm_state          (fsm_state),
+    .enhance_en         (enhance_en),
+    .enhance_user_in_en (enhance_user_in_en),
+    .inc_saturation     (up),
+    .dec_saturation     (down),
+    .inc_brightness     (right),
+    .dec_brightness     (left),
+    //.reset_enhance      (center),
+    .hsv_in             (chr_pixel_out),
+    .hsv_out            (pixel_hsv_in)
   );
   
   // Filter Effects
   wire [23:0] pixel_filtered;
-  wire filters_enable = filters_en && (fsm_state == COLOR_EDITS);
+  //wire filters_enable = filters_en && (fsm_state == COLOR_EDITS);
+  wire filters_user_in_en = filters_en && (fsm_state == COLOR_EDITS);
   
   filters filters1(
-    .clk            (clk),
-    .rst            (reset),
-    .filters_en     (filters_enable),
-    .select0        (select0),
-    .select1        (select1),
-    .select2        (select2),
-    .select3        (select3),
-    .rgb_in         (pixel_rgb_out),
-    .rgb_out        (pixel_filtered),
-    .filter         (selected_filter)
+    .clk                  (clk),
+    .rst                  (reset),
+    .filters_en           (filters_en),
+    .filters_user_in_en   (filters_user_in_en),
+    .select0              (select0),
+    .select1              (select1),
+    .select2              (select2),
+    .select3              (select3),
+    .rgb_in               (pixel_rgb_out),
+    .rgb_out              (pixel_filtered),
+    .filter               (selected_filter)
   );
     
   // Text Movement
@@ -287,8 +294,11 @@ module pixel_sel(
   end
   
   // Output Pixel
-  assign vga_rgb_out = pixel_filtered + text_crosshair_pixel_q + graphics_crosshair_pixel_q;
-
+  //assign vga_rgb_out = pixel_filtered + text_crosshair_pixel_q + graphics_crosshair_pixel_q;
+  
+  assign vga_rgb_out = (text_en && (text_crosshair_pixel_q != 24'd0)) ? text_crosshair_pixel_q :
+                        (graphics_en && (graphics_crosshair_pixel_q != 24'd0)) ? graphics_crosshair_pixel_q : pixel_filtered;
+                        
   reg [23:0] pixel_out_q;
   //wire in_display = hcount < 640 && vcount < 400;
   

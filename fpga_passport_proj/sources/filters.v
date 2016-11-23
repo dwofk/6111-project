@@ -21,6 +21,7 @@
 module filters(
     input clk, rst,
     input filters_en,
+    input filters_user_in_en,
     input select0,
     input select1,
     input select2,
@@ -37,8 +38,8 @@ module filters(
   
   // determine which filter was selected
   always @(posedge clk) begin
-    if (filters_en && select0) filter_q <= SEPIA;
-    if (filters_en && select1) filter_q <= INVERT;
+    if (filters_en && filters_user_in_en && select0) filter_q <= SEPIA;
+    if (filters_en && filters_user_in_en && select1) filter_q <= INVERT;
   end
 
   // FILTER INSTANTIATIONS

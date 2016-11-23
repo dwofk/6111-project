@@ -23,6 +23,7 @@ module chroma_key(
     input vsync,
     input [23:0] hsv_chr_in,
     input up, down, left, right,
+    input adjust_thr_en,
     output [7:0] range, h_nom, s_nom, v_nom,
     output reg [23:0] hsv_chr_out,
     output reg chroma_key_match
@@ -86,7 +87,7 @@ module chroma_key(
       s_nom_q <= S_NOMINAL;
       v_nom_q <= V_NOMINAL;
       range_q <= RANGE_NOMINAL;
-    end else if (vsync_falling) begin
+    end else if (vsync_falling && adjust_thr_en) begin
       vsync_counter <= vsync_counter+1'b1;
       if (vsync_counter == 4'd15) begin
         if (!left && !right) begin              // change H threshold
