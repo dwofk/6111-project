@@ -27,7 +27,7 @@ module main_fsm(
     output [2:0] fsm_state
   );
   
-  localparam IDLE = 3'b000;
+  localparam FSM_IDLE = 3'b000;
   localparam SEL_BKGD = 3'b001;
   localparam COLOR_EDITS = 3'b010;
   localparam ADD_EDITS = 3'b011;
@@ -76,21 +76,21 @@ module main_fsm(
 
   always @(*) begin
     case (fsm_state_q)
-      IDLE          : next_state = (sw_ntsc_rising) ? SEL_BKGD : IDLE;
+      FSM_IDLE      : next_state = (sw_ntsc_rising) ? SEL_BKGD : FSM_IDLE;
 
       SEL_BKGD      : next_state = (enter_rising) ? COLOR_EDITS : 
-                                     (sw_ntsc_falling) ? IDLE : SEL_BKGD;
+                                     (sw_ntsc_falling) ? FSM_IDLE : SEL_BKGD;
       
       COLOR_EDITS   : next_state = (enter_rising) ? ADD_EDITS : 
-                                     (sw_ntsc_falling) ? IDLE : COLOR_EDITS;
+                                     (sw_ntsc_falling) ? FSM_IDLE : COLOR_EDITS;
                                      
       ADD_EDITS     : next_state = (store_bram_rising) ? SAVE_TO_BRAM : 
-                                     (sw_ntsc_falling) ? IDLE : ADD_EDITS;
+                                     (sw_ntsc_falling) ? FSM_IDLE : ADD_EDITS;
                                      
       SAVE_TO_BRAM  : next_state = (enter_rising) ? SEND_TO_PC : 
-                                     (sw_ntsc_falling) ? IDLE : SAVE_TO_BRAM;
+                                     (sw_ntsc_falling) ? FSM_IDLE : SAVE_TO_BRAM;
       
-      SEND_TO_PC    : next_state = (sw_ntsc_falling) ? IDLE : SEND_TO_PC;
+      SEND_TO_PC    : next_state = (sw_ntsc_falling) ? FSM_IDLE : SEND_TO_PC;
       
       default       : next_state = fsm_state_q;
     endcase

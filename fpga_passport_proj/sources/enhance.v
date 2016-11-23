@@ -21,6 +21,7 @@
 module enhance(
     input clk, rst,
     input vsync,
+    //input [2:0] fsm_state,
     input enhance_en,
     input inc_saturation,
     input dec_saturation,
@@ -29,47 +30,13 @@ module enhance(
     //input reset_enhance,
     input [23:0] hsv_in,
     output reg [23:0] hsv_out
-    //output saturation_pos_offset,
-    //output saturation_neg_offset,
-    //output brightness_pos_offset,
-    //output brightness_neg_offset
   );
-  
+
   parameter S_DEV = 1; // SATURATION
   parameter V_DEV = 1; // BRIGHTNESS
   
-  //reg [7:0] saturation_pos_offset_q;
-  //reg [7:0] saturation_neg_offset_q;
-  //reg [7:0] brightness_pos_offset_q;
-  //reg [7:0] brightness_neg_offset_q;
-  
   reg [7:0] s_offset_q, v_offset_q;
   reg s_dir_q, v_dir_q;
-  
-  //reg s_dev_dir, v_dev_dir; // 1 when pos, 0 when neg
-  //reg [7:0] s_offset, v_offset;
-  
-  //wire s_offset_inc_below_max = s_offset < (8'd255 - SATURATION_DEV);
-  //wire s_offset_dec_above_min = s_offset > SATURATION_DEV;
-  
-  //wire [3:0] enhance = {inc_saturation, dec_saturation, inc_brightness, dec_brightness};
-  
-  //wire [7:0] current_saturation = hsv_in[15:8];
-  //wire [7:0] current_brightness = hsv_in[7:0];
-  
-  //wire [7:0] next_saturation_pos_offset = saturation_pos_offset_q + SATURATION_DEV;
-  //wire [7:0] next_saturation_neg_offset = saturation_neg_offset_q - SATURATION_DEV;
-  //wire [7:0] next_brightness_pos_offset = brightness_pos_offset_q + BRIGHTNESS_DEV;
-  //wire [7:0] next_brightness_neg_offset = brightness_neg_offset_q - BRIGHTNESS_DEV;
-
-  //wire saturation_in_range = ((current_saturation < (8'd255 - next_saturation_pos_offset)) &&
-  //                             (current_saturation > next_saturation_neg_offset));
-                               
-  //wire brightness_in_range = ((current_brightness < (8'd255 - next_brightness_pos_offset)) &&
-  //                             (current_brightness > next_brightness_neg_offset));
-  
-  //wire saturation_in_range = ((current_saturation < (8'd255 - saturation_pos_offset_q)) &&
-  //                               (current_saturation > next_saturation_neg_offset));
                                
   // detect falling edge of vsync
   reg vsync_q;
@@ -78,7 +45,9 @@ module enhance(
   wire vsync_falling;
   assign vsync_falling = (vsync !== vsync_q) && (vsync === 1'b0);
   
-  wire reset_enhance = inc_saturation && dec_saturation && inc_brightness && dec_brightness;
+  wire zero_saturation = inc_saturation && dec_saturation;
+  wire zero_brightness = inc_brightness && dec_brightness;
+  wire reset_enhance = enhance_en && zero_saturation && zero_brightness; 
   
   // adjust S/V offsets based on user input
   always @(posedge clk) begin
@@ -87,14 +56,8 @@ module enhance(
       v_offset_q <= 0;
       s_dir_q <= 0;
       v_dir_q <= 0;
-      //saturation_pos_offset_q <= 0;
-      //saturation_neg_offset_q <= 0;
-      //brightness_pos_offset_q <= 0;
-      //brightness_neg_offset_q <= 0;
-    end else if (vsync_falling) begin
-      //if (inc_saturation) saturation_pos_offset_q <= saturation_pos_offset_q + SATURATION_DEV;
-      //if (dec_saturation) saturation_neg_offset_q <= saturation_neg_offset_q + SATURATION_DEV;
-      
+    end else if (vsync_falling && enhance_en) begin
+ 
       // adjust saturation offset
       case ({inc_saturation, dec_saturation, s_dir_q})
         3'b100 : begin
@@ -178,42 +141,5 @@ module enhance(
       
     end
   end
-        
-        /*case (enhance)
-          4'b0000 : begin
-                      saturation_pos_offset_q <= saturation_pos_offset_q + 0;
-                      saturation_neg_offset_q <= saturation_neg_offset_q + 0;
-                      brightness_pos_offset_q <= brightness_pos_offset_q + 0;
-                      brightness_neg_offset_q <= brightness_neg_offset_q + 0;
-          4'b0001 : begin
-                      saturation_pos_offset_q <= saturation_pos_offset_q + 0;
-                      saturation_neg_offset_q <= saturation_neg_offset_q + 0;
-                      brightness_pos_offset_q <= brightness_pos_offset_q + 0;
-                      brightness_neg_offset_q <= (brightness_in_range) ? brightness_neg_offset_q + 0;
-          4'b0010 : begin
-                      saturation_pos_offset_q <= saturation_pos_offset_q + 0;
-                      saturation_neg_offset_q <= saturation_neg_offset_q + 0;
-                      brightness_pos_offset_q <= brightness_pos_offset_q + 0;
-                      brightness_neg_offset_q <= brightness_neg_offset_q + 0;
-          4'b0011 : begin
-                      saturation_pos_offset_q <= saturation_pos_offset_q + 0;
-                      saturation_neg_offset_q <= saturation_neg_offset_q + 0;
-                      brightness_pos_offset_q <= brightness_pos_offset_q + 0;
-                      brightness_neg_offset_q <= brightness_neg_offset_q + 0;
-          4'b0100 : begin
-                      saturation_pos_offset_q <= saturation_pos_offset_q + 0;
-                      saturation_neg_offset_q <= saturation_neg_offset_q + 0;
-                      brightness_pos_offset_q <= brightness_pos_offset_q + 0;
-                      brightness_neg_offset_q <= brightness_neg_offset_q + 0;
-          4'b0000 : begin
-                      saturation_pos_offset_q <= saturation_pos_offset_q + 0;
-                      saturation_neg_offset_q <= saturation_neg_offset_q + 0;
-                      brightness_pos_offset_q <= brightness_pos_offset_q + 0;
-                      brightness_neg_offset_q <= brightness_neg_offset_q + 0;                      
-        endcase*/
- //     end
- //   end
- // end
-
-
+  
 endmodule

@@ -20,13 +20,18 @@
 //////////////////////////////////////////////////////////////////////////////////
 module pixel_sel(
     input clk, reset,
+    // states
+    input [2:0] fsm_state,
     input [1:0] bram_state,
-    //input [1:0] editor_fsm_state,
     // user switch inputs
     input sw_ntsc,
     input store_bram,
     input enhance_en,
     input filters_en,
+    input text_en,
+    input graphics_en,
+    input move_text_en,
+    input move_graphics_en,
     //input [1:0] filter,
     // user button inputs
     input up, down, left, right,
@@ -35,20 +40,33 @@ module pixel_sel(
     input [29:0] vr_pixel,
     input [7:0] bram_dout,
     // VGA timing signals
-    input [10:0] hcount,
-    input [9:0] vcount,
+    input [10:0] hcount, //hoffset, hmax,
+    input [9:0] vcount, //voffset, vmax,
     input blank,
     input hsync,
     input vsync,
+    input in_display,
     // VGA outputs
     output [23:0] pixel_out,
     output blank_out,
     output hsync_out,
-    output vsync_out
+    output vsync_out,
+    output [10:0] text_x_pos,
+    output [9:0] text_y_pos,
+    // Hex Display outputs
+    output [7:0] thr_range, h_thr, s_thr, v_thr
   );
   
+  // FSM states
+  localparam FSM_IDLE = 3'b000;
+  localparam SEL_BKGD = 3'b001;
+  localparam COLOR_EDITS = 3'b010;
+  localparam ADD_EDITS = 3'b011;
+  localparam SAVE_TO_BRAM = 3'b100;
+  localparam SEND_TO_PC = 3'b101;
+  
   // BRAM states
-  localparam IDLE = 2'b00;
+  localparam BRAM_IDLE = 2'b00;
   localparam CAPTURE_FRAME = 2'b01;
   localparam WRITING_FRAME = 2'b10;
   localparam READING_FRAME = 2'b11;
@@ -73,11 +91,11 @@ module pixel_sel(
   //parameter FILTER_DLY = (!filters_en) ? 0 :
   //                         (selected_filter == INVERT) ? INVERT_DLY : SEPIA_DLY;
   
-  parameter FILTER_DLY = SEPIA_DLY;
+  //parameter FILTER_DLY = SEPIA_DLY;
   
   //parameter COLOR_PIXEL_DLY = RGB2HSV_DLY + THRESHOLD_DLY;
   parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + 
-                          HSV2RGB_DLY + ENHANCE_DLY + SEPIA_DLY;
+                        HSV2RGB_DLY + ENHANCE_DLY + SEPIA_DLY + 1;
                           
   // YCrCb to RGB Conversion
   wire [23:0] vr_pixel_color;
@@ -123,33 +141,60 @@ module pixel_sel(
   );
   
   // Thresholding & Compositing
-  reg [23:0] pixel_hsv_in_q;
+  //reg [23:0] pixel_hsv_in_q;
   //assign pixel_hsv_in = pixel_hsv_in_q;
-  
   //always @(posedge clk) pixel_hsv_in_q <= pixel_hsv_out;
   
+  wire chroma_key_match;
+  wire [23:0] hsv_chr_out;
+  //wire [7:0] h_thr, s_thr, v_thr;
+  
+  chroma_key chroma_key1(
+    .clk              (clk),
+    .rst              (reset),
+    .vsync            (vsync),
+    .hsv_chr_in       (pixel_hsv_out),
+    .up               (up),
+    .down             (down),
+    .left             (left),
+    .right            (right),
+    .range            (thr_range),
+    .h_nom            (h_thr),
+    .s_nom            (s_thr),
+    .v_nom            (v_thr),
+    .hsv_chr_out      (hsv_chr_out),
+    .chroma_key_match (chroma_key_match)
+  );
+  
+  wire [23:0] chr_pixel_out;    // chroma-keyed pixel
+  assign chr_pixel_out = (chroma_key_match) ? 24'hD5FFFF : hsv_chr_out;
+  
   // Image Enhancement
+  wire enhance_enable = enhance_en && (fsm_state == COLOR_EDITS);
+  
   enhance enhance1(
     .clk            (clk),
     .rst            (reset),
 	  .vsync          (vsync),
-    .enhance_en     (enhance_en),
+    //.fsm_state      (fsm_state),
+    .enhance_en     (enhance_enable),
     .inc_saturation (up),
     .dec_saturation (down),
     .inc_brightness (right),
     .dec_brightness (left),
     //.reset_enhance  (center),
-    .hsv_in         (pixel_hsv_out),
+    .hsv_in         (chr_pixel_out),
     .hsv_out        (pixel_hsv_in)
   );
   
   // Filter Effects
   wire [23:0] pixel_filtered;
+  wire filters_enable = filters_en && (fsm_state == COLOR_EDITS);
   
   filters filters1(
     .clk            (clk),
     .rst            (reset),
-    .filters_en     (filters_en),
+    .filters_en     (filters_enable),
     .select0        (select0),
     .select1        (select1),
     .select2        (select2),
@@ -158,8 +203,66 @@ module pixel_sel(
     .rgb_out        (pixel_filtered),
     .filter         (selected_filter)
   );
+    
+  // Text Movement
+  //wire [10:0] text_x_pos;
+  //wire [9:0] text_y_pos;
+  wire text_move_enable = text_en && move_text_en && (fsm_state == ADD_EDITS);
   
-  assign vga_rgb_out = pixel_filtered;
+  mover text_mover(
+    .clk      (clk),
+    .rst      (reset),
+    .move_en  (text_move_enable),
+    .up       (up),
+    .down     (down),
+    .left     (left),
+    .right    (right),
+    .vsync    (vsync),
+    //.hoffset  (hoffset),
+    //.voffset  (voffset),
+    //.hmax     (hmax),
+    //.vmax     (vmax),
+    .x_pos    (text_x_pos),
+    .y_pos    (text_y_pos)
+  );
+    
+  // Graphics Movement
+  wire [10:0] graphics_x_pos;
+  wire [9:0] graphics_y_pos;
+  wire graphics_move_enable = graphics_en && move_graphics_en && (fsm_state == ADD_EDITS);
+
+  mover graphics_mover(
+    .clk      (clk),
+    .rst      (reset),
+    .move_en  (graphics_move_enable),
+    .up       (up),
+    .down     (down),
+    .left     (left),
+    .right    (right),
+    .vsync    (vsync),
+    //.hoffset  (hoffset),
+    //.voffset  (voffset),
+    //.hmax     (hmax),
+    //.vmax     (vmax),
+    .x_pos    (graphics_x_pos),
+    .y_pos    (graphics_y_pos)
+  );
+  
+  // Text Crosshair
+  reg [23:0] text_crosshair_pixel_q;
+  always @(posedge clk) begin
+    if (text_en && ((hcount == text_x_pos) || (vcount == text_y_pos)))
+      text_crosshair_pixel_q <= 24'hFF0000;
+    else text_crosshair_pixel_q <= 24'h000000;
+  end
+  
+  // Graphics Crosshair
+  reg [23:0] graphics_crosshair_pixel_q;
+  always @(posedge clk) begin
+    if (graphics_en && ((hcount == graphics_x_pos) || (vcount == graphics_y_pos)))
+      graphics_crosshair_pixel_q <= 24'h0000FF;
+    else graphics_crosshair_pixel_q <= 24'h000000;
+  end
   
   // Delay Sync Signals
   reg [0:0] hsync_shift_reg[SYNC_DLY-1:0];
@@ -183,9 +286,11 @@ module pixel_sel(
       color_pixel_shift_reg[i] <= color_pixel_shift_reg[i-1];*/
   end
   
-  // Select Output Pixel
+  // Output Pixel
+  assign vga_rgb_out = pixel_filtered + text_crosshair_pixel_q + graphics_crosshair_pixel_q;
+
   reg [23:0] pixel_out_q;
-  wire in_display = hcount < 640 && vcount < 400;
+  //wire in_display = hcount < 640 && vcount < 400;
   
   always @(posedge clk) begin
     //pixel_out_q <= sw_ntsc ? 0 : pixel_hsv_out;

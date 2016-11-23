@@ -1,17 +1,17 @@
-module bram_ifc(
+module frame_bram_ifc(
     input clk, rst,
     input store_bram,
     input [10:0] hcount,
     input [9:0] vcount,
-    //input [10:0] hoffset,
-    //input [9:0] voffset,
-    //input in_display,
+    input [10:0] hoffset,
+    input [9:0] voffset,
+    input in_display,
     input [23:0] pixel_out,
     output [7:0] bram_dout,
     output [1:0] bram_state
   );  
   
-  localparam IDLE = 2'b00;
+  localparam BRAM_IDLE = 2'b00;
   localparam CAPTURE_FRAME = 2'b01;
   localparam WRITING_FRAME = 2'b10;
   localparam READING_FRAME = 2'b11;
@@ -29,9 +29,9 @@ module bram_ifc(
   reg [17:0] write_counter_q = 0; 
   reg [17:0] read_counter_q = 0; 
   
-  wire in_display = hcount < 640 && vcount < 400;
+  //wire in_display = hcount < 640 && vcount < 400;
   wire frame_loaded = (write_counter_q == 18'd255999);
-  wire at_origin = (hcount==0) && (vcount==0);
+  wire at_origin = (hcount==hoffset) && (vcount==voffset);
   
   // BRAM signal declarations
   wire [7:0] frame_bram_din;
@@ -48,10 +48,10 @@ module bram_ifc(
   
   always @(posedge clk) begin
     case (state_q)
-      IDLE          : begin
+      BRAM_IDLE     : begin
                         write_counter_q <= 0;
                         read_counter_q <= 0;
-                        state_q <= (bram_sw_rising) ? CAPTURE_FRAME : IDLE;
+                        state_q <= (bram_sw_rising) ? CAPTURE_FRAME : BRAM_IDLE;
                        end
              
       CAPTURE_FRAME : state_q <= (at_origin) ? WRITING_FRAME : CAPTURE_FRAME;
@@ -63,7 +63,7 @@ module bram_ifc(
       
       READING_FRAME : begin
                         if (in_display) read_counter_q <= (read_counter_q == 18'd255999) ? 0 : read_counter_q+1'b1;
-                        state_q <= (bram_sw_falling) ? IDLE : READING_FRAME;
+                        state_q <= (bram_sw_falling) ? BRAM_IDLE : READING_FRAME;
                       end
     endcase
   end
