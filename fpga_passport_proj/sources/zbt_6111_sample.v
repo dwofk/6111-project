@@ -287,7 +287,7 @@ module zbt_6111_sample(beep, audio_reset_b,
 	wire locked;
 	//assign clock_feedback_out = 0; // gph 2011-Nov-10
   
-  wire clock_65mhz = clock_40mhz;
+  wire clock_65mhz = clock_40mhz; // when switching from 1024x768 to 800x600
    
    ramclock rc(.ref_clock(clock_65mhz), .fpga_clock(clk),
 					.ram0_clock(ram0_clk), 

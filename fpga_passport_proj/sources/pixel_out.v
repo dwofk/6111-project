@@ -232,6 +232,20 @@ module pixel_sel(
     .x_pos    (text_x_pos),
     .y_pos    (text_y_pos)
   );
+  
+  // Text Generation
+  wire [2:0] text_sel = 2'b01;
+  wire [23:0] text_gen_pixel;
+  
+  stringmaker text_gen(
+    .clk        (clk),
+    .x          (text_x_pos),
+    .hcount     (hcount),
+    .y          (text_y_pos),
+    .vcount     (vcount), 
+    .background (text_sel),
+    .pixel      (text_gen_pixel)
+  );
     
   // Graphics Movement
   wire [10:0] graphics_x_pos;
@@ -296,9 +310,12 @@ module pixel_sel(
   // Output Pixel
   //assign vga_rgb_out = pixel_filtered + text_crosshair_pixel_q + graphics_crosshair_pixel_q;
   
-  assign vga_rgb_out = (text_en && (text_crosshair_pixel_q != 24'd0)) ? text_crosshair_pixel_q :
+  //assign vga_rgb_out = (text_en && (text_crosshair_pixel_q != 24'd0)) ? text_crosshair_pixel_q :
+  //                      (graphics_en && (graphics_crosshair_pixel_q != 24'd0)) ? graphics_crosshair_pixel_q : pixel_filtered;
+  
+  assign vga_rgb_out = (text_en && (text_gen_pixel != 24'd0)) ? text_gen_pixel :
                         (graphics_en && (graphics_crosshair_pixel_q != 24'd0)) ? graphics_crosshair_pixel_q : pixel_filtered;
-                        
+                                              
   reg [23:0] pixel_out_q;
   //wire in_display = hcount < 640 && vcount < 400;
   
