@@ -230,7 +230,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    // button_left, button_down, button_up, and switches are inputs
 
    // User I/Os
-   assign user1 = 32'hZ;
+   assign user1[31:1] = 31'hZ;
    assign user2 = 32'hZ;
    assign user3 = 32'hZ;
    assign user4 = 32'hZ;
@@ -420,14 +420,14 @@ module zbt_6111_sample(beep, audio_reset_b,
   //
   ////////////////////////////////////////////////////////////////////////////
    
-  parameter H_OFFSET = 10'd0;
+  parameter H_OFFSET = 10'd40;
   parameter V_OFFSET = 9'd0;
   
   parameter H_MAX_DISPLAY = 10'd640;
   parameter V_MAX_DISPLAY = 9'd400;
   
-  wire hcount_in_display = (hcount >= H_OFFSET) && (hcount < H_MAX_DISPLAY);
-  wire vcount_in_display = (vcount >= V_OFFSET) && (vcount < V_MAX_DISPLAY);
+  wire hcount_in_display = (hcount >= H_OFFSET) && (hcount < (H_MAX_DISPLAY+H_OFFSET));
+  wire vcount_in_display = (vcount >= V_OFFSET) && (vcount < (V_MAX_DISPLAY+V_OFFSET));
   wire in_display = hcount_in_display && vcount_in_display;
   
   ////////////////////////////////////////////////////////////////////////////
@@ -435,6 +435,13 @@ module zbt_6111_sample(beep, audio_reset_b,
   // Main FSM
   //
   ////////////////////////////////////////////////////////////////////////////
+  
+  localparam FSM_IDLE = 3'b000;
+  localparam SEL_BKGD = 3'b001;
+  localparam COLOR_EDITS = 3'b010;
+  localparam ADD_EDITS = 3'b011;
+  localparam SAVE_TO_BRAM = 3'b100;
+  localparam SEND_TO_PC = 3'b101;
   
   wire [2:0] fsm_state;
   
@@ -527,6 +534,9 @@ module zbt_6111_sample(beep, audio_reset_b,
   
   //wire [1:0] bram_state;
   
+  wire [17:0] tx_counter;
+  wire transmitting = (fsm_state == SEND_TO_PC);
+  
   frame_bram_ifc frame_bram(
     .clk         (clk),
     .rst         (1'b0),
@@ -537,6 +547,8 @@ module zbt_6111_sample(beep, audio_reset_b,
     .voffset     (V_OFFSET),
     .in_display  (in_display),
     .pixel_out   (pixel_out),
+    .tx_counter  (tx_counter),
+    .transmitting(transmitting),
     .bram_dout   (bram_dout),
     .bram_state  (bram_state)
   );
@@ -559,17 +571,56 @@ module zbt_6111_sample(beep, audio_reset_b,
 
    ////////////////////////////////////////////////////////////////////////////
 
+   reg [17:0] tx_counter_q = 0;
+   assign tx_counter = (tx_counter_q < 18'd256000) ? tx_counter_q : 0;
+   
+   reg [1:0] rgb_count = 0;
+   
+   wire [3:0] bitcount;
+   wire uart_busy, uart_tx;
+   //wire uart_wr_i = custom_text_en;
+   wire uart_wr_i = transmitting && !(tx_counter_q == 18'd256000);
+   wire [7:0] uart_dat_i = (rgb_count == 2'b00) ? {bram_dout[4:2], 5'b00000} :
+                              (rgb_count == 2'b01) ? {bram_dout[1:0], 6'b000000} :
+                              {bram_dout[7:5], 5'b00000};
+   //wire [7:0] uart_dat_i = 8'd74;
+   
+   uart tx(
+    .uart_busy  (uart_busy),
+    .uart_tx    (uart_tx),
+    .uart_wr_i  (uart_wr_i),
+    .uart_dat_i (uart_dat_i),
+    .sys_clk_i  (clock_65mhz),
+    .sys_rst_i  (reset),
+    //.ser_clk_o  (ser_clk),
+    .bitcount  (bitcount)
+   );
+   
+   always @(posedge clk) begin
+      //if (uart_wr_i && (rgb_count == 2'b00)) rgb_count <= 2'b01;
+      if (bitcount == 4'd1) begin
+        if (uart_wr_i) rgb_count <= (rgb_count == 2'b10) ? 2'b00 : rgb_count+1;
+        if ((rgb_count == 2'b10) && uart_wr_i) tx_counter_q <= tx_counter_q + 1'b1;
+      end
+   end
+
    // debugging
    //assign led = ~{vram_addr[18:13],reset,switch[0]};
-   assign led = ~{bram_state,store_bram,fsm_state,move_text_en,move_graphics_en};
+   //assign led = ~{bram_state,store_bram,fsm_state,move_text_en,move_graphics_en};
+   assign led = ~{5'b00000, uart_wr_i, uart_busy, uart_tx};
+   
+   assign user1[0] = uart_tx;
 
 	 //displayed on hex display for debugging
    always @(posedge clk) begin
      // dispdata <= {vram_read_data,9'b0,vram_addr};
      //dispdata <= hcount;
-     dispdata[63:56] <= {5'b00000, fsm_state};
-     dispdata[55:24] <= {thr_range, h_thr, s_thr, v_thr};
-     dispdata[23:0] <= {1'b0, text_x_pos, 2'b00, text_y_pos};
+     //dispdata[63:56] <= {5'b00000, fsm_state};
+     //dispdata[55:24] <= {thr_range, h_thr, s_thr, v_thr};
+     //dispdata[23:0] <= {1'b0, text_x_pos, 2'b00, text_y_pos};
+     dispdata[63:60] <= bitcount;
+     dispdata[59:56] <= {2'b00, rgb_count};
+     dispdata[55:0] <= {38'd0, tx_counter};
    end
    
 endmodule

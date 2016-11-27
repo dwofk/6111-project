@@ -317,7 +317,7 @@ module pixel_sel(
                         (graphics_en && (graphics_crosshair_pixel_q != 24'd0)) ? graphics_crosshair_pixel_q : pixel_filtered;
                                               
   reg [23:0] pixel_out_q;
-  //wire in_display = hcount < 640 && vcount < 400;
+  //wire in_display_rd = hcount < 640 && vcount < 400;
   
   always @(posedge clk) begin
     //pixel_out_q <= sw_ntsc ? 0 : pixel_hsv_out;

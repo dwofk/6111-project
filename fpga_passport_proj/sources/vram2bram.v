@@ -7,6 +7,8 @@ module frame_bram_ifc(
     input [9:0] voffset,
     input in_display,
     input [23:0] pixel_out,
+    input [17:0] tx_counter,
+    input transmitting,
     output [7:0] bram_dout,
     output [1:0] bram_state
   );  
@@ -29,7 +31,7 @@ module frame_bram_ifc(
   reg [17:0] write_counter_q = 0; 
   reg [17:0] read_counter_q = 0; 
   
-  //wire in_display = hcount < 640 && vcount < 400;
+  //wire in_display_rd = hcount < 640 && vcount < 400;
   wire frame_loaded = (write_counter_q == 18'd255999);
   wire at_origin = (hcount==hoffset) && (vcount==voffset);
   
@@ -43,7 +45,8 @@ module frame_bram_ifc(
   // inputs to BRAM instantiation
   assign frame_bram_din = {pixel_out[23:21],pixel_out[15:13],pixel_out[7:6]};		// 8-bit color
   assign frame_bram_wea = (state_q == WRITING_FRAME) && in_display && !frame_loaded;  
-  assign frame_bram_addr = (state_q == WRITING_FRAME) ? write_counter_q : 
+  assign frame_bram_addr = (transmitting) ? tx_counter :
+                            (state_q == WRITING_FRAME) ? write_counter_q : 
                             (state_q == READING_FRAME) ? read_counter_q : 0;
   
   always @(posedge clk) begin
