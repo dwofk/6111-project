@@ -27,15 +27,17 @@ module main_fsm(
     output [2:0] fsm_state
   );
   
-  localparam FSM_IDLE = 3'b000;
-  localparam SEL_BKGD = 3'b001;
-  localparam COLOR_EDITS = 3'b010;
-  localparam ADD_EDITS = 3'b011;
-  localparam SAVE_TO_BRAM = 3'b100;
-  localparam SEND_TO_PC = 3'b101;
+  `include "param.v"
+  
+//  localparam FSM_IDLE = 3'b000;
+//  localparam SEL_BKGD = 3'b001;
+//  localparam COLOR_EDITS = 3'b010;
+//  localparam ADD_EDITS = 3'b011;
+//  localparam SAVE_TO_BRAM = 3'b100;
+//  localparam SEND_TO_PC = 3'b101;
   
   reg [2:0] fsm_state_q = 3'b000;
-  reg [3:0] next_state;
+  reg [2:0] next_state;
   
   assign fsm_state = fsm_state_q;
   
@@ -98,7 +100,8 @@ module main_fsm(
   
   always @(posedge clk) begin
     //if (fsm_reset) fsm_state_q <= IDLE;
-    fsm_state_q <= next_state;
+    if (rst) fsm_state_q <= FSM_IDLE;
+    else fsm_state_q <= next_state;
   end
 
 endmodule

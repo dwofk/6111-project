@@ -53,6 +53,8 @@ module zbt_6111_sample(beep, audio_reset_b,
  	       analyzer2_data, analyzer2_clock,
  	       analyzer3_data, analyzer3_clock,
  	       analyzer4_data, analyzer4_clock);
+         
+  `include "param.v"
 
    output beep, audio_reset_b, ac97_synch, ac97_sdata_out;
    input  ac97_bit_clock, ac97_sdata_in;
@@ -435,13 +437,13 @@ module zbt_6111_sample(beep, audio_reset_b,
   // Main FSM
   //
   ////////////////////////////////////////////////////////////////////////////
-  
-  localparam FSM_IDLE = 3'b000;
-  localparam SEL_BKGD = 3'b001;
-  localparam COLOR_EDITS = 3'b010;
-  localparam ADD_EDITS = 3'b011;
-  localparam SAVE_TO_BRAM = 3'b100;
-  localparam SEND_TO_PC = 3'b101;
+ 
+//  localparam FSM_IDLE = 3'b000;
+//  localparam SEL_BKGD = 3'b001;
+//  localparam COLOR_EDITS = 3'b010;
+//  localparam ADD_EDITS = 3'b011;
+//  localparam SAVE_TO_BRAM = 3'b100;
+//  localparam SEND_TO_PC = 3'b101;
   
   wire [2:0] fsm_state;
   
@@ -533,25 +535,77 @@ module zbt_6111_sample(beep, audio_reset_b,
   ////////////////////////////////////////////////////////////////////////////
   
   //wire [1:0] bram_state;
-  
-  wire [17:0] tx_counter;
-  wire transmitting = (fsm_state == SEND_TO_PC);
+  wire [17:0] bram_tx_counter;
+  //wire transmitting = (fsm_state == SEND_TO_PC);
   
   frame_bram_ifc frame_bram(
     .clk         (clk),
     .rst         (1'b0),
-    .store_bram (store_bram),
+    .store_bram  (store_bram),
     .hcount      (hcount),
     .vcount      (vcount),
     .hoffset     (H_OFFSET),
     .voffset     (V_OFFSET),
     .in_display  (in_display),
     .pixel_out   (pixel_out),
-    .tx_counter  (tx_counter),
-    .transmitting(transmitting),
+    .fsm_state   (fsm_state),
+    .tx_counter  (bram_tx_counter),
+    //.transmitting(transmitting),
     .bram_dout   (bram_dout),
     .bram_state  (bram_state)
   );
+  
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // UART TX
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+
+  localparam TX_RED = 2;
+  localparam TX_GREEN = 0;
+  localparam TX_BLUE = 1;
+
+  reg [17:0] uart_tx_counter_q = 0;
+  assign bram_tx_counter = (uart_tx_counter_q < 18'd256000) ? uart_tx_counter_q : 0;
+ 
+  reg [1:0] rgb_tx_state_q = 0;
+  
+  // UART signals
+  wire uart_reset, uart_tx_en;
+  wire [7:0] uart_tx_data_in;
+  wire uart_tx_bit_out;
+  wire [3:0] uart_tx_bit_ctr;
+  wire uart_tx_busy;
+  
+  uart_tx uart_tx1(
+    .clk      (clock_65mhz),
+    .rst      (uart_reset),
+    .tx_en    (uart_tx_en),
+    .data_in  (uart_tx_data_in),
+    .bit_out  (uart_tx_bit_out),
+    .tx_busy  (uart_tx_busy),
+    .bit_ctr  (uart_tx_bit_ctr)
+   );
+  
+  assign uart_reset = (fsm_state == FSM_IDLE);
+  
+  wire frame_tx_done = (uart_tx_counter_q == 18'd256000);
+  assign uart_tx_en = (fsm_state == SEND_TO_PC) && !frame_tx_done;
+
+  assign uart_tx_data_in = (rgb_tx_state_q == TX_RED) ? {bram_dout[7:5], 5'd0} :
+                            (rgb_tx_state_q == TX_GREEN) ? {bram_dout[4:2], 5'd0} :
+                            (rgb_tx_state_q == TX_BLUE) ? {bram_dout[1:0], 6'd0} : 8'd0;
+      
+   always @(posedge clk) begin
+      if (uart_reset) begin
+        uart_tx_counter_q <= 0;
+        rgb_tx_state_q <= 0;
+      end else if (uart_tx_bit_ctr == 4'd1) begin
+        if (uart_tx_en) rgb_tx_state_q <= (rgb_tx_state_q == 2'b10) ? 2'b00 : rgb_tx_state_q+1;
+        if (rgb_tx_state_q == 2'b10) uart_tx_counter_q <= uart_tx_counter_q + 1'b1;
+      end   
+   end
   
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -571,45 +625,14 @@ module zbt_6111_sample(beep, audio_reset_b,
 
    ////////////////////////////////////////////////////////////////////////////
 
-   reg [17:0] tx_counter_q = 0;
-   assign tx_counter = (tx_counter_q < 18'd256000) ? tx_counter_q : 0;
-   
-   reg [1:0] rgb_count = 0;
-   
-   wire [3:0] bitcount;
-   wire uart_busy, uart_tx;
-   //wire uart_wr_i = custom_text_en;
-   wire uart_wr_i = transmitting && !(tx_counter_q == 18'd256000);
-   wire [7:0] uart_dat_i = (rgb_count == 2'b00) ? {bram_dout[4:2], 5'b00000} :
-                              (rgb_count == 2'b01) ? {bram_dout[1:0], 6'b000000} :
-                              {bram_dout[7:5], 5'b00000};
-   //wire [7:0] uart_dat_i = 8'd74;
-   
-   uart tx(
-    .uart_busy  (uart_busy),
-    .uart_tx    (uart_tx),
-    .uart_wr_i  (uart_wr_i),
-    .uart_dat_i (uart_dat_i),
-    .sys_clk_i  (clock_65mhz),
-    .sys_rst_i  (reset),
-    //.ser_clk_o  (ser_clk),
-    .bitcount  (bitcount)
-   );
-   
-   always @(posedge clk) begin
-      //if (uart_wr_i && (rgb_count == 2'b00)) rgb_count <= 2'b01;
-      if (bitcount == 4'd1) begin
-        if (uart_wr_i) rgb_count <= (rgb_count == 2'b10) ? 2'b00 : rgb_count+1;
-        if ((rgb_count == 2'b10) && uart_wr_i) tx_counter_q <= tx_counter_q + 1'b1;
-      end
-   end
-
    // debugging
    //assign led = ~{vram_addr[18:13],reset,switch[0]};
    //assign led = ~{bram_state,store_bram,fsm_state,move_text_en,move_graphics_en};
-   assign led = ~{5'b00000, uart_wr_i, uart_busy, uart_tx};
+   //assign led = ~{5'b00000, uart_wr_i, uart_busy, uart_tx};
+   assign led = ~{4'b0000, 1'b0, uart_tx_en, 1'b0, uart_tx_busy};
    
-   assign user1[0] = uart_tx;
+   assign user1[0] = uart_tx_bit_out; 
+   //assign user1[0] = uart_tx;
 
 	 //displayed on hex display for debugging
    always @(posedge clk) begin
@@ -618,9 +641,9 @@ module zbt_6111_sample(beep, audio_reset_b,
      //dispdata[63:56] <= {5'b00000, fsm_state};
      //dispdata[55:24] <= {thr_range, h_thr, s_thr, v_thr};
      //dispdata[23:0] <= {1'b0, text_x_pos, 2'b00, text_y_pos};
-     dispdata[63:60] <= bitcount;
-     dispdata[59:56] <= {2'b00, rgb_count};
-     dispdata[55:0] <= {38'd0, tx_counter};
+     //dispdata[63:60] <= bitcount;
+     dispdata[63:56] <= {6'b00, rgb_tx_state_q};
+     dispdata[55:0] <= {38'd0, uart_tx_counter_q};
    end
    
 endmodule

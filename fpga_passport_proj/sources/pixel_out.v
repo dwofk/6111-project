@@ -57,19 +57,21 @@ module pixel_sel(
     output [7:0] thr_range, h_thr, s_thr, v_thr
   );
   
-  // FSM states
-  localparam FSM_IDLE = 3'b000;
-  localparam SEL_BKGD = 3'b001;
-  localparam COLOR_EDITS = 3'b010;
-  localparam ADD_EDITS = 3'b011;
-  localparam SAVE_TO_BRAM = 3'b100;
-  localparam SEND_TO_PC = 3'b101;
+  `include "param.v"
   
-  // BRAM states
-  localparam BRAM_IDLE = 2'b00;
-  localparam CAPTURE_FRAME = 2'b01;
-  localparam WRITING_FRAME = 2'b10;
-  localparam READING_FRAME = 2'b11;
+//  // FSM states
+//  localparam FSM_IDLE = 3'b000;
+//  localparam SEL_BKGD = 3'b001;
+//  localparam COLOR_EDITS = 3'b010;
+//  localparam ADD_EDITS = 3'b011;
+//  localparam SAVE_TO_BRAM = 3'b100;
+//  localparam SEND_TO_PC = 3'b101;
+//  
+//  // BRAM states
+//  localparam BRAM_IDLE = 2'b00;
+//  localparam CAPTURE_FRAME = 2'b01;
+//  localparam WRITING_FRAME = 2'b10;
+//  localparam READING_FRAME = 2'b11;
   
   wire [1:0] selected_filter;  // used in determining filter module latency
   wire [23:0] vga_rgb_out;     // connected to VGA pixel output
@@ -322,8 +324,9 @@ module pixel_sel(
   always @(posedge clk) begin
     //pixel_out_q <= sw_ntsc ? 0 : pixel_hsv_out;
     //pixel_out_q <= sw_ntsc ? 0 : store_bram ? (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF) : vga_rgb_out;
-    if (bram_state == READING_FRAME) pixel_out_q <= in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF;
-    else pixel_out_q <= sw_ntsc ? 0 : vga_rgb_out;
+    if ((bram_state == READING_FRAME) && !(fsm_state == SEND_TO_PC))
+      pixel_out_q <= in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF;
+    else pixel_out_q <= sw_ntsc ? 0 : (fsm_state == SEND_TO_PC) ? 0 : vga_rgb_out;
     //pixel_out_q <= sw_ntsc ? 0 : (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF);
     //pixel_out_q <= sw_ntsc ? 0 : vr_pixel_color;
   end  
