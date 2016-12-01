@@ -34,4 +34,4 @@ parameter WRITING_FRAME = 2'b10;
 parameter READING_FRAME = 2'b11;
 
 // Constants
-parameter CUSTOM_TEXT_MAXLEN = 20;
+parameter TEXT_LEN_MAX = 30;

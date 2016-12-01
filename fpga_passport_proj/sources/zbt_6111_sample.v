@@ -459,6 +459,28 @@ module zbt_6111_sample(beep, audio_reset_b,
   
   ////////////////////////////////////////////////////////////////////////////
   //
+  // Custom Text
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  
+  wire [CUSTOM_TEXT_MAXLEN*8-1:0] char_array;
+  wire char_array_rdy, accepting_kbd_input;
+  
+  custom_text #(CUSTOM_TEXT_MAXLEN) custom_text1(
+    .clock_27mhz          (clock_27mhz),
+    .reset                (reset),
+    .custom_text_en       (custom_text_en),
+    .fsm_state            (fsm_state),
+    .button_enter         (enter),
+    .keyboard_clock       (keyboard_clock),
+    .keyboard_data        (keyboard_data),
+    .char_array           (char_array),
+    .char_array_rdy       (char_array_rdy),
+    .accepting_kbd_input  (accepting_kbd_input)
+  );
+  
+  ////////////////////////////////////////////////////////////////////////////
+  //
   // Output Pixel
   //
   ////////////////////////////////////////////////////////////////////////////
@@ -629,7 +651,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    //assign led = ~{vram_addr[18:13],reset,switch[0]};
    //assign led = ~{bram_state,store_bram,fsm_state,move_text_en,move_graphics_en};
    //assign led = ~{5'b00000, uart_wr_i, uart_busy, uart_tx};
-   assign led = ~{4'b0000, 1'b0, uart_tx_en, 1'b0, uart_tx_busy};
+   assign led = ~{1'b0, fsm_state, char_array_rdy, accepting_kbd_input, uart_tx_en, uart_tx_busy};
    
    assign user1[0] = uart_tx_bit_out; 
    //assign user1[0] = uart_tx;
@@ -642,8 +664,9 @@ module zbt_6111_sample(beep, audio_reset_b,
      //dispdata[55:24] <= {thr_range, h_thr, s_thr, v_thr};
      //dispdata[23:0] <= {1'b0, text_x_pos, 2'b00, text_y_pos};
      //dispdata[63:60] <= bitcount;
-     dispdata[63:56] <= {6'b00, rgb_tx_state_q};
-     dispdata[55:0] <= {38'd0, uart_tx_counter_q};
+     //dispdata[63:56] <= {6'b00, rgb_tx_state_q};
+     //dispdata[55:0] <= {38'd0, uart_tx_counter_q};
+     dispdata[63:0] <= (char_array_rdy) ? char_array[8*CUSTOM_TEXT_MAXLEN-1:8*(CUSTOM_TEXT_MAXLEN-8)] : 0;
    end
    
 endmodule
