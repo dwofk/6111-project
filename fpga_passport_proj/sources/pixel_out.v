@@ -36,6 +36,7 @@ module pixel_sel(
     // user button inputs
     input up, down, left, right,
     input select0, select1, select2, select3,
+    input [2:0] background,
     // pixel value inputs
     input [29:0] vr_pixel,
     input [7:0] bram_dout,
@@ -229,7 +230,6 @@ module pixel_sel(
   );
   
   // Text Generation
-  wire [2:0] text_sel = 2'b01;
   wire [23:0] text_gen_pixel;
   
   stringmaker text_gen(
@@ -238,7 +238,7 @@ module pixel_sel(
     .hcount     (hcount),
     .y          (text_y_pos),
     .vcount     (vcount), 
-    .background (text_sel),
+    .background (background[1:0]),
     .pixel      (text_gen_pixel)
   );
     

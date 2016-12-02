@@ -415,7 +415,7 @@ module zbt_6111_sample(beep, audio_reset_b,
 	//write enable when in write mode and camera wants to write
    assign 	vram_we = sw_ntsc & ntsc_we;
    assign 	vram_write_data = write_data;
-   
+
   ////////////////////////////////////////////////////////////////////////////
   //
   // Display Signals for BRAM Frame
@@ -456,6 +456,25 @@ module zbt_6111_sample(beep, audio_reset_b,
     .store_bram (store_bram),
     .fsm_state  (fsm_state)
   );
+  
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // Background Selection
+  //
+  ////////////////////////////////////////////////////////////////////////////   
+   
+  // determine which background was selected
+  reg [2:0] background_q;
+  wire [2:0] background = background_q;
+  wire sel_all = select0 && select1 && select2 && select3;
+  
+  always @(posedge clk) begin
+    if ((fsm_state == SEL_BKGD) && select0) background_q <= PARIS;
+    if ((fsm_state == SEL_BKGD) && select1) background_q <= ROME;
+    if ((fsm_state == SEL_BKGD) && select2) background_q <= AMAZON;
+    if ((fsm_state == SEL_BKGD) && select3) background_q <= LONDON;
+    if ((fsm_state == SEL_BKGD) && sel_all) background_q <= NO_BKD;
+  end
   
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -531,6 +550,7 @@ module zbt_6111_sample(beep, audio_reset_b,
     .select1      (select1),
     .select2      (select2),
     .select3      (select3),
+    .background   (background),
     // pixel value inputs
     .vr_pixel     (vr_pixel),
     .bram_dout    (bram_dout),
