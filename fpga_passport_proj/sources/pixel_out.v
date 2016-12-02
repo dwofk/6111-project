@@ -55,7 +55,8 @@ module pixel_sel(
     output [10:0] text_x_pos,
     output [9:0] text_y_pos,
     // Hex Display outputs
-    output [7:0] thr_range, h_thr, s_thr, v_thr
+    output [7:0] thr_range, h_thr, s_thr, v_thr,
+    output [7:0] a0
   );
   
   `include "param.v"
@@ -85,13 +86,14 @@ module pixel_sel(
   //parameter COLOR_PIXEL_DLY = RGB2HSV_DLY + THRESHOLD_DLY;
   
   parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + 
-                        HSV2RGB_DLY + ENHANCE_DLY + 1 + 10;
+                        HSV2RGB_DLY + ENHANCE_DLY + 1;
                         
   parameter SYNC_DLY_SEP = SYNC_DLY + SEPIA_DLY;                              
   parameter SYNC_DLY_INV = SYNC_DLY + INVERT_DLY;
   parameter SYNC_DLY_GRY = SYNC_DLY + GRAYSCALE_DLY;
+  parameter SYNC_DLY_SBL = SYNC_DLY + SOBEL_DLY;
                               
-  parameter MAX_SYNC_DLY = SYNC_DLY_SEP;
+  parameter MAX_SYNC_DLY = SYNC_DLY_SBL;
   
   // YCrCb to RGB Conversion
   wire [23:0] vr_pixel_color;
@@ -204,7 +206,8 @@ module pixel_sel(
     .select3              (select3),
     .rgb_in               (pixel_rgb_out),
     .rgb_out              (pixel_filtered),
-    .filter               (selected_filter)
+    .filter               (selected_filter),
+    .a0                   (a0)
   );
     
   // Text Movement
@@ -329,23 +332,26 @@ module pixel_sel(
 //  assign blank_out = blank_shift_reg[SYNC_DLY-1];
 //  assign hsync_out = hsync_shift_reg[SYNC_DLY-1];
 //  assign vsync_out = vsync_shift_reg[SYNC_DLY-1];
-  
+
   assign blank_out = (!filters_en) ? blank_shift_reg[SYNC_DLY-1] :
                         (selected_filter == SEPIA) ? blank_shift_reg[SYNC_DLY_SEP-1] :
                         (selected_filter == INVERT) ? blank_shift_reg[SYNC_DLY_INV-1] :
                         (selected_filter == GRAYSCALE) ? blank_shift_reg[SYNC_DLY_GRY-1] :
+                        (selected_filter == SOBEL) ? blank_shift_reg[SYNC_DLY_SBL-1] :
                          blank_shift_reg[SYNC_DLY-1];
                          
   assign hsync_out = (!filters_en) ? hsync_shift_reg[SYNC_DLY-1] :
                         (selected_filter == SEPIA) ? hsync_shift_reg[SYNC_DLY_SEP-1] :
                         (selected_filter == INVERT) ? hsync_shift_reg[SYNC_DLY_INV-1] :
                         (selected_filter == GRAYSCALE) ? hsync_shift_reg[SYNC_DLY_GRY-1] :
+                        (selected_filter == SOBEL) ? hsync_shift_reg[SYNC_DLY_SBL-1] :
                          hsync_shift_reg[SYNC_DLY-1];
                          
   assign vsync_out = (!filters_en) ? vsync_shift_reg[SYNC_DLY-1] :
                         (selected_filter == SEPIA) ? vsync_shift_reg[SYNC_DLY_SEP-1] :
                         (selected_filter == INVERT) ? vsync_shift_reg[SYNC_DLY_INV-1] :
                         (selected_filter == GRAYSCALE) ? vsync_shift_reg[SYNC_DLY_GRY-1] :
+                        (selected_filter == SOBEL) ? vsync_shift_reg[SYNC_DLY_SBL-1] :
                          vsync_shift_reg[SYNC_DLY-1];                            
 
 endmodule

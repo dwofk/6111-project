@@ -525,6 +525,8 @@ module zbt_6111_sample(beep, audio_reset_b,
   
   wire [7:0] thr_range, h_thr, s_thr, v_thr;
   
+  wire [7:0] a0;
+  
   pixel_sel pixel_sel1(
     .clk          (clk),
     .reset        (reset),
@@ -576,7 +578,8 @@ module zbt_6111_sample(beep, audio_reset_b,
     .thr_range    (thr_range),
     .h_thr        (h_thr),
     .v_thr        (v_thr),
-    .s_thr        (s_thr)
+    .s_thr        (s_thr),
+    .a0           (a0)
   );
   
   ////////////////////////////////////////////////////////////////////////////
@@ -699,9 +702,9 @@ module zbt_6111_sample(beep, audio_reset_b,
      //dispdata[63:60] <= bitcount;
      //dispdata[63:56] <= {6'b00, rgb_tx_state_q};
      //dispdata[55:0] <= {38'd0, uart_tx_counter_q};
-     dispdata[63:0] <= (char_array_rdy) ? char_array[8*CUSTOM_TEXT_MAXLEN-1:8*(CUSTOM_TEXT_MAXLEN-8)] : 0;
-     //for (d=0; d<16; d=d+1) dispdata[(4*d)+:4] <= letter_array[(5*d)+:4];
-     //dispdata[63:0] <= letter_array[5*CUSTOM_TEXT_MAXLEN-1:5*CUSTOM_TEXT_MAXLEN-64];
+     //dispdata[63:0] <= (char_array_rdy) ? char_array[8*CUSTOM_TEXT_MAXLEN-1:8*(CUSTOM_TEXT_MAXLEN-8)] : 0;
+     dispdata[63:8] <= 0;
+     dispdata[7:0] <= a0;
    end
    
 endmodule

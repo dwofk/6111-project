@@ -28,24 +28,28 @@ module filters(
     input select3,
     input [23:0] rgb_in,
     output [23:0] rgb_out,
-    output [1:0] filter
+    output [1:0] filter,
+    output [7:0] a0
   );
   
   `include "param.v"
   
-  reg [1:0] filter_q = 0;
+  reg [1:0] filter_q = SOBEL;
   
   // determine which filter was selected
   always @(posedge clk) begin
     if (filters_en && filters_user_in_en && select0) filter_q <= SEPIA;
     if (filters_en && filters_user_in_en && select1) filter_q <= INVERT;
     if (filters_en && filters_user_in_en && select2) filter_q <= GRAYSCALE;
+    if (filters_en && filters_user_in_en && select3) filter_q <= SOBEL;
   end
 
   // FILTER INSTANTIATIONS
   wire [23:0] rgb_invert;
   wire [23:0] rgb_sepia;
   wire [23:0] rgb_gray;
+  wire [23:0] rgb_edge;
+  wire [23:0] rgb_cartoon;
   
   sepia sepia_filter(
     .clk    (clk),
@@ -80,10 +84,20 @@ module filters(
     .b_out  (rgb_gray[7:0])
   );
   
+  cartoon cartoon_filter(
+    .clk          (clk),
+    .rst          (rst),
+    .rgb_gray     (rgb_gray[7:0]),
+    .rgb_in       (rgb_in),
+    .rgb_edge     (rgb_edge),
+    .rgb_cartoon  (rgb_cartoon)
+  );
+  
   assign filter = filter_q;
   assign rgb_out = (!filters_en) ? rgb_in :
                     (filter_q == SEPIA) ? rgb_sepia :
                     (filter_q == INVERT) ? rgb_invert : 
-                    (filter_q == GRAYSCALE) ? rgb_gray : rgb_in;
+                    (filter_q == GRAYSCALE) ? rgb_gray : 
+                    (filter_q == SOBEL) ? rgb_cartoon : rgb_in;
   
 endmodule
