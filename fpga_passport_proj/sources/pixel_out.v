@@ -76,29 +76,22 @@ module pixel_sel(
   wire [1:0] selected_filter;  // used in determining filter module latency
   wire [23:0] vga_rgb_out;     // connected to VGA pixel output
   
-  // Filter Types
-  parameter SEPIA = 2'b00;
-  parameter INVERT = 2'b01;
-  
-  // Delay Parameters
-  parameter YCRCB2RGB_DLY = 4;
-  parameter RGB2HSV_DLY = 23;
-  parameter THRESHOLD_DLY = 1;
-  parameter HSV2RGB_DLY = 10;
-  parameter ENHANCE_DLY = 1;
-  
-  parameter INVERT_DLY = 1;
-  parameter SEPIA_DLY = 4;
-  
   //parameter FILTER_DLY = (!filters_en) ? 0 :
   //                         (selected_filter == INVERT) ? INVERT_DLY : SEPIA_DLY;
   
   //parameter FILTER_DLY = SEPIA_DLY;
   
   //parameter COLOR_PIXEL_DLY = RGB2HSV_DLY + THRESHOLD_DLY;
+  
   parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + 
-                        HSV2RGB_DLY + ENHANCE_DLY + SEPIA_DLY + 1;
-                          
+                        HSV2RGB_DLY + ENHANCE_DLY + 1 + 10;
+                        
+  parameter SYNC_DLY_SEP = SYNC_DLY + SEPIA_DLY;                              
+  parameter SYNC_DLY_INV = SYNC_DLY + INVERT_DLY;
+  parameter SYNC_DLY_GRY = SYNC_DLY + GRAYSCALE_DLY;
+                              
+  parameter MAX_SYNC_DLY = SYNC_DLY_SEP;
+  
   // YCrCb to RGB Conversion
   wire [23:0] vr_pixel_color;
   
@@ -288,9 +281,9 @@ module pixel_sel(
   end
   
   // Delay Sync Signals
-  reg [0:0] hsync_shift_reg[SYNC_DLY-1:0];
-  reg [0:0] vsync_shift_reg[SYNC_DLY-1:0];
-  reg [0:0] blank_shift_reg[SYNC_DLY-1:0];
+  reg [0:0] hsync_shift_reg[MAX_SYNC_DLY-1:0];
+  reg [0:0] vsync_shift_reg[MAX_SYNC_DLY-1:0];
+  reg [0:0] blank_shift_reg[MAX_SYNC_DLY-1:0];
   /*reg [23:0] color_pixel_shift_reg[COLOR_PIXEL_DLY-1:0];*/
 
   integer i;
@@ -300,7 +293,7 @@ module pixel_sel(
     vsync_shift_reg[0] <= vsync;
     blank_shift_reg[0] <= blank;
     
-    for (i=1; i<SYNC_DLY; i=i+1) begin
+    for (i=1; i<MAX_SYNC_DLY; i=i+1) begin
       hsync_shift_reg[i] <= hsync_shift_reg[i-1];
       vsync_shift_reg[i] <= vsync_shift_reg[i-1];
       blank_shift_reg[i] <= blank_shift_reg[i-1];
@@ -333,8 +326,26 @@ module pixel_sel(
   
   // Output Signal Assignments
   assign pixel_out = pixel_out_q;
-  assign blank_out = blank_shift_reg[SYNC_DLY-1];
-  assign hsync_out = hsync_shift_reg[SYNC_DLY-1];
-  assign vsync_out = vsync_shift_reg[SYNC_DLY-1];
+//  assign blank_out = blank_shift_reg[SYNC_DLY-1];
+//  assign hsync_out = hsync_shift_reg[SYNC_DLY-1];
+//  assign vsync_out = vsync_shift_reg[SYNC_DLY-1];
+  
+  assign blank_out = (!filters_en) ? blank_shift_reg[SYNC_DLY-1] :
+                        (selected_filter == SEPIA) ? blank_shift_reg[SYNC_DLY_SEP-1] :
+                        (selected_filter == INVERT) ? blank_shift_reg[SYNC_DLY_INV-1] :
+                        (selected_filter == GRAYSCALE) ? blank_shift_reg[SYNC_DLY_GRY-1] :
+                         blank_shift_reg[SYNC_DLY-1];
+                         
+  assign hsync_out = (!filters_en) ? hsync_shift_reg[SYNC_DLY-1] :
+                        (selected_filter == SEPIA) ? hsync_shift_reg[SYNC_DLY_SEP-1] :
+                        (selected_filter == INVERT) ? hsync_shift_reg[SYNC_DLY_INV-1] :
+                        (selected_filter == GRAYSCALE) ? hsync_shift_reg[SYNC_DLY_GRY-1] :
+                         hsync_shift_reg[SYNC_DLY-1];
+                         
+  assign vsync_out = (!filters_en) ? vsync_shift_reg[SYNC_DLY-1] :
+                        (selected_filter == SEPIA) ? vsync_shift_reg[SYNC_DLY_SEP-1] :
+                        (selected_filter == INVERT) ? vsync_shift_reg[SYNC_DLY_INV-1] :
+                        (selected_filter == GRAYSCALE) ? vsync_shift_reg[SYNC_DLY_GRY-1] :
+                         vsync_shift_reg[SYNC_DLY-1];                            
 
 endmodule

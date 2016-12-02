@@ -464,7 +464,13 @@ module zbt_6111_sample(beep, audio_reset_b,
   ////////////////////////////////////////////////////////////////////////////
   
   wire [CUSTOM_TEXT_MAXLEN*8-1:0] char_array;
-  wire char_array_rdy, accepting_kbd_input;
+  wire char_array_rdy;
+  
+  wire keyboard_waiting;
+  wire [5:0] num_char;
+
+  //wire [CUSTOM_TEXT_MAXLEN*5-1:0] letter_array;
+  //wire letter_array_rdy;
   
   custom_text #(CUSTOM_TEXT_MAXLEN) custom_text1(
     .clock_27mhz          (clock_27mhz),
@@ -475,8 +481,11 @@ module zbt_6111_sample(beep, audio_reset_b,
     .keyboard_clock       (keyboard_clock),
     .keyboard_data        (keyboard_data),
     .char_array           (char_array),
+    //.letter_array         (letter_array),
+    .keyboard_waiting     (keyboard_waiting),
     .char_array_rdy       (char_array_rdy),
-    .accepting_kbd_input  (accepting_kbd_input)
+    //.letter_array_rdy     (letter_array_rdy),
+    .num_char             (num_char)
   );
   
   ////////////////////////////////////////////////////////////////////////////
@@ -651,11 +660,15 @@ module zbt_6111_sample(beep, audio_reset_b,
    //assign led = ~{vram_addr[18:13],reset,switch[0]};
    //assign led = ~{bram_state,store_bram,fsm_state,move_text_en,move_graphics_en};
    //assign led = ~{5'b00000, uart_wr_i, uart_busy, uart_tx};
-   assign led = ~{1'b0, fsm_state, char_array_rdy, accepting_kbd_input, uart_tx_en, uart_tx_busy};
+   assign led = ~{1'b0, num_char, char_array_rdy, keyboard_waiting};
+   //assign led = ~{1'b0, num_char, letter_array_rdy, keyboard_waiting};
+   
    
    assign user1[0] = uart_tx_bit_out; 
    //assign user1[0] = uart_tx;
 
+   integer d;
+   
 	 //displayed on hex display for debugging
    always @(posedge clk) begin
      // dispdata <= {vram_read_data,9'b0,vram_addr};
@@ -667,6 +680,8 @@ module zbt_6111_sample(beep, audio_reset_b,
      //dispdata[63:56] <= {6'b00, rgb_tx_state_q};
      //dispdata[55:0] <= {38'd0, uart_tx_counter_q};
      dispdata[63:0] <= (char_array_rdy) ? char_array[8*CUSTOM_TEXT_MAXLEN-1:8*(CUSTOM_TEXT_MAXLEN-8)] : 0;
+     //for (d=0; d<16; d=d+1) dispdata[(4*d)+:4] <= letter_array[(5*d)+:4];
+     //dispdata[63:0] <= letter_array[5*CUSTOM_TEXT_MAXLEN-1:5*CUSTOM_TEXT_MAXLEN-64];
    end
    
 endmodule

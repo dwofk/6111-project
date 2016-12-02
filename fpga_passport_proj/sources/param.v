@@ -35,3 +35,20 @@ parameter READING_FRAME = 2'b11;
 
 // Constants
 parameter CUSTOM_TEXT_MAXLEN = 20;
+
+// Filter Types
+parameter SEPIA = 2'b00;
+parameter INVERT = 2'b01;
+parameter GRAYSCALE = 2'b10;
+
+// Delay Parameters
+parameter YCRCB2RGB_DLY = 4;
+parameter RGB2HSV_DLY = 23;
+parameter THRESHOLD_DLY = 1;
+parameter HSV2RGB_DLY = 10;
+parameter ENHANCE_DLY = 1;
+
+// Filter Module Latencies
+parameter INVERT_DLY = 1;
+parameter SEPIA_DLY = 4;
+parameter GRAYSCALE_DLY = 3;
