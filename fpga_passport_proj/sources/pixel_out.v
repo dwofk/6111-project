@@ -18,7 +18,7 @@
 // Additional Comments: 
 //
 //////////////////////////////////////////////////////////////////////////////////
-module pixel_sel(
+module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     input clk, reset,
     // states
     input [2:0] fsm_state,
@@ -32,11 +32,16 @@ module pixel_sel(
     input graphics_en,
     input move_text_en,
     input move_graphics_en,
+    input custom_text_en,
     //input [1:0] filter,
     // user button inputs
     input up, down, left, right,
     input select0, select1, select2, select3,
     input [2:0] background,
+    // custom text gen inputs
+    input [5:0] num_char,
+    input char_array_rdy,
+    input [TEXT_LEN_MAX*8-1:0] char_array,
     // pixel value inputs
     input [29:0] vr_pixel,
     input [7:0] bram_dout,
@@ -46,7 +51,7 @@ module pixel_sel(
     input blank,
     input hsync,
     input vsync,
-    input in_display,
+    input in_display_bram,
     // VGA outputs
     output [23:0] pixel_out,
     output blank_out,
@@ -75,7 +80,7 @@ module pixel_sel(
 //  localparam WRITING_FRAME = 2'b10;
 //  localparam READING_FRAME = 2'b11;
   
-  wire [1:0] selected_filter;  // used in determining filter module latency
+  wire [2:0] selected_filter;  // used in determining filter module latency
   wire [23:0] vga_rgb_out;     // connected to VGA pixel output
   
   //parameter FILTER_DLY = (!filters_en) ? 0 :
@@ -204,6 +209,8 @@ module pixel_sel(
     .select1              (select1),
     .select2              (select2),
     .select3              (select3),
+    .hcount               (hcount),
+    .vcount               (vcount),
     .rgb_in               (pixel_rgb_out),
     .rgb_out              (pixel_filtered),
     .filter               (selected_filter),
@@ -235,7 +242,21 @@ module pixel_sel(
   // Text Generation
   wire [23:0] text_gen_pixel;
   
-  stringmaker text_gen(
+  stringmaker #(CUSTOM_TEXT_MAXLEN) text_gen(
+    .clk        (clk),
+    .x          (text_x_pos),
+    .hcount     (hcount),
+    .y          (text_y_pos),
+    .vcount     (vcount), 
+    .background (background[1:0]),
+    .numchar    (num_char),
+    .ready      (char_array_rdy),
+    .string     (char_array),
+    .custom     (custom_text_en),
+    .pixel      (text_gen_pixel)
+  );
+  
+/*  stringmaker text_gen(
     .clk        (clk),
     .x          (text_x_pos),
     .hcount     (hcount),
@@ -243,7 +264,7 @@ module pixel_sel(
     .vcount     (vcount), 
     .background (background[1:0]),
     .pixel      (text_gen_pixel)
-  );
+  );*/
     
   // Graphics Movement
   wire [10:0] graphics_x_pos;
@@ -283,6 +304,17 @@ module pixel_sel(
     else graphics_crosshair_pixel_q <= 24'h000000;
   end
   
+  // Graphics Generation
+  graphicsmaker graphics_gen(
+    .pixel_clk  (clk),
+    .x          (graphics_x_pos),
+    .hcount     (hcount),
+    .y          (graphics_y_pos),
+    .vcount     (vcount), 
+    .graphic    (2'b00), //(graphics_sel[1:0]),
+    .pixel      (graphics_gen_pixel)
+  );
+  
   // Delay Sync Signals
   reg [0:0] hsync_shift_reg[MAX_SYNC_DLY-1:0];
   reg [0:0] vsync_shift_reg[MAX_SYNC_DLY-1:0];
@@ -311,18 +343,24 @@ module pixel_sel(
   //assign vga_rgb_out = (text_en && (text_crosshair_pixel_q != 24'd0)) ? text_crosshair_pixel_q :
   //                      (graphics_en && (graphics_crosshair_pixel_q != 24'd0)) ? graphics_crosshair_pixel_q : pixel_filtered;
   
-  assign vga_rgb_out = (text_en && (text_gen_pixel != 24'd0)) ? text_gen_pixel :
-                        (graphics_en && (graphics_crosshair_pixel_q != 24'd0)) ? graphics_crosshair_pixel_q : pixel_filtered;
+  assign vga_rgb_out = (text_en && (text_gen_pixel != 24'hFFFFFF)) ? text_gen_pixel :
+                        (graphics_en && (graphics_gen_pixel != 24'hFFFFFF)) ? graphics_gen_pixel : pixel_filtered;
                                               
   reg [23:0] pixel_out_q;
   //wire in_display_rd = hcount < 640 && vcount < 400;
+
+  wire h_border_pixel = (hcount == HCOUNT_MAX) || (hcount == H_MAX_NTSC-1);
+  wire v_border_pixel = (vcount == VCOUNT_MAX) || (vcount == V_MAX_NTSC-1);
+  wire border_pixel = h_border_pixel && v_border_pixel;
   
   always @(posedge clk) begin
     //pixel_out_q <= sw_ntsc ? 0 : pixel_hsv_out;
     //pixel_out_q <= sw_ntsc ? 0 : store_bram ? (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF) : vga_rgb_out;
     if ((bram_state == READING_FRAME) && !(fsm_state == SEND_TO_PC))
-      pixel_out_q <= in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF;
-    else pixel_out_q <= sw_ntsc ? 0 : (fsm_state == SEND_TO_PC) ? 0 : vga_rgb_out;
+      pixel_out_q <= in_display_bram ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF;
+    else pixel_out_q <= sw_ntsc ? 24'h000000 : (fsm_state == SEND_TO_PC) ? 24'h000000 :
+                         (border_pixel && (selected_filter == EDGE)) ? 24'hFFFFFF :
+                         (border_pixel && (selected_filter == CARTOON)) ? 24'h000000 : vga_rgb_out;
     //pixel_out_q <= sw_ntsc ? 0 : (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF);
     //pixel_out_q <= sw_ntsc ? 0 : vr_pixel_color;
   end  
@@ -337,21 +375,24 @@ module pixel_sel(
                         (selected_filter == SEPIA) ? blank_shift_reg[SYNC_DLY_SEP-1] :
                         (selected_filter == INVERT) ? blank_shift_reg[SYNC_DLY_INV-1] :
                         (selected_filter == GRAYSCALE) ? blank_shift_reg[SYNC_DLY_GRY-1] :
-                        (selected_filter == SOBEL) ? blank_shift_reg[SYNC_DLY_SBL-1] :
+                        (selected_filter == EDGE) ? blank_shift_reg[SYNC_DLY_SBL-1] :
+                        (selected_filter == CARTOON) ? blank_shift_reg[SYNC_DLY_SBL-1] :
                          blank_shift_reg[SYNC_DLY-1];
                          
   assign hsync_out = (!filters_en) ? hsync_shift_reg[SYNC_DLY-1] :
                         (selected_filter == SEPIA) ? hsync_shift_reg[SYNC_DLY_SEP-1] :
                         (selected_filter == INVERT) ? hsync_shift_reg[SYNC_DLY_INV-1] :
                         (selected_filter == GRAYSCALE) ? hsync_shift_reg[SYNC_DLY_GRY-1] :
-                        (selected_filter == SOBEL) ? hsync_shift_reg[SYNC_DLY_SBL-1] :
+                        (selected_filter == EDGE) ? hsync_shift_reg[SYNC_DLY_SBL-1] :
+                        (selected_filter == CARTOON) ? hsync_shift_reg[SYNC_DLY_SBL-1] :
                          hsync_shift_reg[SYNC_DLY-1];
                          
   assign vsync_out = (!filters_en) ? vsync_shift_reg[SYNC_DLY-1] :
                         (selected_filter == SEPIA) ? vsync_shift_reg[SYNC_DLY_SEP-1] :
                         (selected_filter == INVERT) ? vsync_shift_reg[SYNC_DLY_INV-1] :
                         (selected_filter == GRAYSCALE) ? vsync_shift_reg[SYNC_DLY_GRY-1] :
-                        (selected_filter == SOBEL) ? vsync_shift_reg[SYNC_DLY_SBL-1] :
+                        (selected_filter == EDGE) ? vsync_shift_reg[SYNC_DLY_SBL-1] :
+                        (selected_filter == CARTOON) ? vsync_shift_reg[SYNC_DLY_SBL-1] :
                          vsync_shift_reg[SYNC_DLY-1];                            
 
 endmodule

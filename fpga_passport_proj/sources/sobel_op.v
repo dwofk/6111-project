@@ -26,6 +26,8 @@ module sobel_op(
     output [15:0] gradient
   );
   
+  // Sobel 3x3 operator
+  
   // convolutional masks for Sobel operator
   //   Gx = ( -1 0 1 )   Gy = (  1  2  1 )
   //        ( -2 0 2 )        (  0  0  0 )

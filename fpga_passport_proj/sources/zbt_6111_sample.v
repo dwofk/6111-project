@@ -422,28 +422,21 @@ module zbt_6111_sample(beep, audio_reset_b,
   //
   ////////////////////////////////////////////////////////////////////////////
    
-  parameter H_OFFSET = 10'd40;
-  parameter V_OFFSET = 9'd0;
+//  parameter H_OFFSET = 10'd40;
+//  parameter V_OFFSET = 9'd0;
+//  
+//  parameter H_MAX_DISPLAY = 10'd640;
+//  parameter V_MAX_DISPLAY = 9'd400;
   
-  parameter H_MAX_DISPLAY = 10'd640;
-  parameter V_MAX_DISPLAY = 9'd400;
-  
-  wire hcount_in_display = (hcount >= H_OFFSET) && (hcount < (H_MAX_DISPLAY+H_OFFSET));
-  wire vcount_in_display = (vcount >= V_OFFSET) && (vcount < (V_MAX_DISPLAY+V_OFFSET));
-  wire in_display = hcount_in_display && vcount_in_display;
+  wire hcount_in_display_bram = (hcount >= H_OFFSET) && (hcount < (H_MAX_DISPLAY+H_OFFSET));
+  wire vcount_in_display_bram = (vcount >= V_OFFSET) && (vcount < (V_MAX_DISPLAY+V_OFFSET));
+  wire in_display_bram = hcount_in_display_bram && vcount_in_display_bram;
   
   ////////////////////////////////////////////////////////////////////////////
   //
   // Main FSM
   //
   ////////////////////////////////////////////////////////////////////////////
- 
-//  localparam FSM_IDLE = 3'b000;
-//  localparam SEL_BKGD = 3'b001;
-//  localparam COLOR_EDITS = 3'b010;
-//  localparam ADD_EDITS = 3'b011;
-//  localparam SAVE_TO_BRAM = 3'b100;
-//  localparam SEND_TO_PC = 3'b101;
   
   wire [2:0] fsm_state;
   
@@ -527,7 +520,7 @@ module zbt_6111_sample(beep, audio_reset_b,
   
   wire [7:0] a0;
   
-  pixel_sel pixel_sel1(
+  pixel_sel #(CUSTOM_TEXT_MAXLEN) pixel_sel1(
     .clk          (clk),
     .reset        (reset),
     // states
@@ -542,6 +535,7 @@ module zbt_6111_sample(beep, audio_reset_b,
     .graphics_en  (graphics_en),
     .move_text_en (move_text_en),
     .move_graphics_en (move_graphics_en),
+    .custom_text_en (custom_text_en),
     // user button inputs
     .up           (up),
     .down         (down),
@@ -553,6 +547,10 @@ module zbt_6111_sample(beep, audio_reset_b,
     .select2      (select2),
     .select3      (select3),
     .background   (background),
+    // custom text gen inputs
+    .num_char         (num_char),
+    .char_array_rdy   (char_array_rdy),
+    .char_array       (char_array),
     // pixel value inputs
     .vr_pixel     (vr_pixel),
     .bram_dout    (bram_dout),
@@ -566,7 +564,7 @@ module zbt_6111_sample(beep, audio_reset_b,
     .blank        (blank),
     .hsync        (hsync),
     .vsync        (vsync),
-    .in_display   (in_display),
+    .in_display_bram(in_display_bram),
     // VGA outputs
     .pixel_out    (pixel_out),
     .blank_out    (blank_out),
@@ -600,7 +598,7 @@ module zbt_6111_sample(beep, audio_reset_b,
     .vcount      (vcount),
     .hoffset     (H_OFFSET),
     .voffset     (V_OFFSET),
-    .in_display  (in_display),
+    .in_display  (in_display_bram),
     .pixel_out   (pixel_out),
     .fsm_state   (fsm_state),
     .tx_counter  (bram_tx_counter),
@@ -702,9 +700,9 @@ module zbt_6111_sample(beep, audio_reset_b,
      //dispdata[63:60] <= bitcount;
      //dispdata[63:56] <= {6'b00, rgb_tx_state_q};
      //dispdata[55:0] <= {38'd0, uart_tx_counter_q};
-     //dispdata[63:0] <= (char_array_rdy) ? char_array[8*CUSTOM_TEXT_MAXLEN-1:8*(CUSTOM_TEXT_MAXLEN-8)] : 0;
-     dispdata[63:8] <= 0;
-     dispdata[7:0] <= a0;
+     dispdata[63:0] <= (char_array_rdy) ? char_array[8*CUSTOM_TEXT_MAXLEN-1:8*(CUSTOM_TEXT_MAXLEN-8)] : 0;
+     //dispdata[63:8] <= 0;
+     //dispdata[7:0] <= a0;
    end
    
 endmodule
