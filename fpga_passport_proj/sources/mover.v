@@ -29,13 +29,15 @@ module mover(
     output [9:0] y_pos
   );
   
-  localparam H_MIN = 10'd0;
-  localparam H_MAX = 10'd800;
-  localparam H_INIT = 10'd400;
+  `include "param.v"
+  
+  localparam H_MIN = SYNC_DLY-1;
+  localparam H_MAX = 10'd640;
+  localparam H_INIT = H_MIN;
   
   localparam V_MIN = 10'd0;
-  localparam V_MAX = 10'd600;
-  localparam V_INIT = 10'd300;
+  localparam V_MAX = 10'd480;
+  localparam V_INIT = V_MIN;
   
   // detect falling edge of vsync
   reg vsync_q;

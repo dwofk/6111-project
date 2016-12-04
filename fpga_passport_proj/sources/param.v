@@ -20,10 +20,6 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 // Display Parameters
-parameter H_OFFSET = 11'd40;         // for storage in BRAM
-parameter V_OFFSET = 10'd0;          // for storage in BRAM
-parameter H_MAX_DISPLAY = 11'd640;   // for storage in BRAM
-parameter V_MAX_DISPLAY = 10'd400;   // for storage in BRAM
 parameter H_MAX_NTSC = 11'd640;      // frame size of NTSC camera input
 parameter V_MAX_NTSC = 10'd480;      // frame size of NTSC camera input
 parameter HCOUNT_MAX = 11'd1056;
@@ -80,6 +76,29 @@ parameter AMAZON = 3'b010;
 parameter LONDON = 3'b011;
 parameter NO_BKD = 3'b100;
 
+// Graphics
+parameter MUSTACHE = 2'b00;
+parameter SUNGLASSES = 2'b01;
+parameter SAFARI_HAT = 2'b10;
+parameter CROWN = 2'b11;
+
 // Edge Detection
 parameter GRADIENT_EDGE_THRESHOLD = 15'd50;
 parameter CARTOON_EDGE_THRESHOLD = 15'd100;
+
+// Sync Delay
+parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + 
+                      HSV2RGB_DLY + ENHANCE_DLY + 1;
+                      
+parameter SYNC_DLY_SEP = SYNC_DLY + SEPIA_DLY;                              
+parameter SYNC_DLY_INV = SYNC_DLY + INVERT_DLY;
+parameter SYNC_DLY_GRY = SYNC_DLY + GRAYSCALE_DLY;
+parameter SYNC_DLY_SBL = SYNC_DLY + SOBEL_DLY;
+                            
+parameter MAX_SYNC_DLY = SYNC_DLY_SBL;
+
+// BRAM Storage
+parameter H_OFFSET = SYNC_DLY;       // for storage in BRAM
+parameter V_OFFSET = 10'd0;          // for storage in BRAM
+parameter H_MAX_DISPLAY = 11'd640;   // for storage in BRAM
+parameter V_MAX_DISPLAY = 10'd400;   // for storage in BRAM

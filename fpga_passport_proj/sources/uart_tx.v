@@ -30,8 +30,8 @@ module uart_tx #(
     input tx_en,              // raise to transmit
     input [7:0] data_in,     // 8-bit data input
     output bit_out,           // UART transmit wire
-    output tx_busy,           // High means UART is transmitting
-    output [3:0] bit_ctr
+    output tx_busy,           // asserted when transmitting
+    output [3:0] bit_ctr     // bit counter for transmitting bytes
   );
   
   localparam BITCOUNT = START_BITS + DATA_BITS + STOP_BITS;

@@ -30,7 +30,9 @@ module enhance(
     input dec_brightness,
     //input reset_enhance,
     input [23:0] hsv_in,
-    output reg [23:0] hsv_out
+    output reg [23:0] hsv_out,
+    output [7:0] s_offset, v_offset,
+    output s_dir, v_dir
   );
 
   parameter S_DEV = 1; // SATURATION
@@ -38,6 +40,9 @@ module enhance(
   
   reg [7:0] s_offset_q, v_offset_q;
   reg s_dir_q, v_dir_q;
+  
+  assign {s_dir, s_offset} = {s_dir_q, s_offset_q};
+  assign {v_dir, v_offset} = {v_dir_q, v_offset_q};
                                
   // detect falling edge of vsync
   reg vsync_q;

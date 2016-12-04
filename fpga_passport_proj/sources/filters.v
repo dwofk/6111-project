@@ -30,8 +30,8 @@ module filters(
     input [9:0] vcount,
     input [23:0] rgb_in,
     output [23:0] rgb_out,
-    output [2:0] filter,
-    output [7:0] a0
+    output [2:0] filter
+    //output [7:0] a0
   );
   
   `include "param.v"

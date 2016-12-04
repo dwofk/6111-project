@@ -59,9 +59,17 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     output vsync_out,
     output [10:0] text_x_pos,
     output [9:0] text_y_pos,
+    output [10:0] graphics_x_pos,
+    output [9:0] graphics_y_pos,
     // Hex Display outputs
     output [7:0] thr_range, h_thr, s_thr, v_thr,
-    output [7:0] a0
+    // Image Enhacement outputs
+    output [7:0] s_offset, v_offset,
+    output s_dir, v_dir,
+    // User Selections
+    output[2:0] selected_filter,
+    output [1:0] selected_graphic
+    //output [7:0] a0
   );
   
   `include "param.v"
@@ -80,7 +88,7 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
 //  localparam WRITING_FRAME = 2'b10;
 //  localparam READING_FRAME = 2'b11;
   
-  wire [2:0] selected_filter;  // used in determining filter module latency
+  //wire [2:0] selected_filter;  // used in determining filter module latency -> output
   wire [23:0] vga_rgb_out;     // connected to VGA pixel output
   
   //parameter FILTER_DLY = (!filters_en) ? 0 :
@@ -90,15 +98,15 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
   
   //parameter COLOR_PIXEL_DLY = RGB2HSV_DLY + THRESHOLD_DLY;
   
-  parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + 
-                        HSV2RGB_DLY + ENHANCE_DLY + 1;
-                        
-  parameter SYNC_DLY_SEP = SYNC_DLY + SEPIA_DLY;                              
-  parameter SYNC_DLY_INV = SYNC_DLY + INVERT_DLY;
-  parameter SYNC_DLY_GRY = SYNC_DLY + GRAYSCALE_DLY;
-  parameter SYNC_DLY_SBL = SYNC_DLY + SOBEL_DLY;
-                              
-  parameter MAX_SYNC_DLY = SYNC_DLY_SBL;
+//  parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + 
+//                        HSV2RGB_DLY + ENHANCE_DLY + 1;
+//                        
+//  parameter SYNC_DLY_SEP = SYNC_DLY + SEPIA_DLY;                              
+//  parameter SYNC_DLY_INV = SYNC_DLY + INVERT_DLY;
+//  parameter SYNC_DLY_GRY = SYNC_DLY + GRAYSCALE_DLY;
+//  parameter SYNC_DLY_SBL = SYNC_DLY + SOBEL_DLY;
+//                              
+//  parameter MAX_SYNC_DLY = SYNC_DLY_SBL;
   
   // YCrCb to RGB Conversion
   wire [23:0] vr_pixel_color;
@@ -192,7 +200,11 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .dec_brightness     (left),
     //.reset_enhance      (center),
     .hsv_in             (chr_pixel_out),
-    .hsv_out            (pixel_hsv_in)
+    .hsv_out            (pixel_hsv_in),
+    .s_offset           (s_offset),
+    .v_offset           (v_offset),
+    .s_dir              (s_dir),
+    .v_dir              (v_dir)
   );
   
   // Filter Effects
@@ -213,8 +225,8 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .vcount               (vcount),
     .rgb_in               (pixel_rgb_out),
     .rgb_out              (pixel_filtered),
-    .filter               (selected_filter),
-    .a0                   (a0)
+    .filter               (selected_filter)
+    //.a0                   (a0)
   );
     
   // Text Movement
@@ -238,6 +250,22 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .x_pos    (text_x_pos),
     .y_pos    (text_y_pos)
   );
+  
+  // Text Crosshair
+  reg [23:0] text_crosshair_pixel_q;
+  always @(posedge clk) begin
+    if (text_en && ((hcount == text_x_pos) || (vcount == text_y_pos)))
+      text_crosshair_pixel_q <= 24'hFF0000;
+    else text_crosshair_pixel_q <= 24'h000000;
+  end
+  
+  // Graphics Crosshair
+  reg [23:0] graphics_crosshair_pixel_q;
+  always @(posedge clk) begin
+    if (graphics_en && ((hcount == graphics_x_pos) || (vcount == graphics_y_pos)))
+      graphics_crosshair_pixel_q <= 24'h0000FF;
+    else graphics_crosshair_pixel_q <= 24'h000000;
+  end
   
   // Text Generation
   wire [23:0] text_gen_pixel;
@@ -267,8 +295,8 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
   );*/
     
   // Graphics Movement
-  wire [10:0] graphics_x_pos;
-  wire [9:0] graphics_y_pos;
+  //wire [10:0] graphics_x_pos;
+  //wire [9:0] graphics_y_pos;
   wire graphics_move_enable = graphics_en && move_graphics_en && (fsm_state == ADD_EDITS);
 
   mover graphics_mover(
@@ -288,30 +316,27 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .y_pos    (graphics_y_pos)
   );
   
-  // Text Crosshair
-  reg [23:0] text_crosshair_pixel_q;
-  always @(posedge clk) begin
-    if (text_en && ((hcount == text_x_pos) || (vcount == text_y_pos)))
-      text_crosshair_pixel_q <= 24'hFF0000;
-    else text_crosshair_pixel_q <= 24'h000000;
-  end
-  
-  // Graphics Crosshair
-  reg [23:0] graphics_crosshair_pixel_q;
-  always @(posedge clk) begin
-    if (graphics_en && ((hcount == graphics_x_pos) || (vcount == graphics_y_pos)))
-      graphics_crosshair_pixel_q <= 24'h0000FF;
-    else graphics_crosshair_pixel_q <= 24'h000000;
-  end
-  
   // Graphics Generation
+  wire [23:0] graphics_gen_pixel;
+  wire [1:0] graphics_sel;
+  
+  reg [1:0] graphics_sel_q = 0;
+  assign selected_graphic = graphics_sel_q;
+  
+  always @(posedge clk) begin
+    if ((fsm_state == ADD_EDITS) && select0) graphics_sel_q <= MUSTACHE;
+    if ((fsm_state == ADD_EDITS) && select1) graphics_sel_q <= SUNGLASSES;
+    if ((fsm_state == ADD_EDITS) && select2) graphics_sel_q <= SAFARI_HAT;
+    if ((fsm_state == ADD_EDITS) && select3) graphics_sel_q <= CROWN;
+  end
+
   graphicsmaker graphics_gen(
     .pixel_clk  (clk),
     .x          (graphics_x_pos),
     .hcount     (hcount),
     .y          (graphics_y_pos),
     .vcount     (vcount), 
-    .graphic    (2'b00), //(graphics_sel[1:0]),
+    .graphic    (selected_graphic),
     .pixel      (graphics_gen_pixel)
   );
   
@@ -349,18 +374,18 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
   reg [23:0] pixel_out_q;
   //wire in_display_rd = hcount < 640 && vcount < 400;
 
-  wire h_border_pixel = (hcount == HCOUNT_MAX) || (hcount == H_MAX_NTSC-1);
-  wire v_border_pixel = (vcount == VCOUNT_MAX) || (vcount == V_MAX_NTSC-1);
-  wire border_pixel = h_border_pixel && v_border_pixel;
+  wire h_border_pixel = (hcount<2) || ((hcount>(H_MAX_NTSC-3)) && (hcount<H_MAX_NTSC));
+  wire v_border_pixel = (vcount<2) || ((vcount>(V_MAX_NTSC-3)) && (vcount<V_MAX_NTSC));
+  wire border_pixel = h_border_pixel || v_border_pixel;
   
   always @(posedge clk) begin
     //pixel_out_q <= sw_ntsc ? 0 : pixel_hsv_out;
     //pixel_out_q <= sw_ntsc ? 0 : store_bram ? (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF) : vga_rgb_out;
     if ((bram_state == READING_FRAME) && !(fsm_state == SEND_TO_PC))
       pixel_out_q <= in_display_bram ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF;
-    else pixel_out_q <= sw_ntsc ? 24'h000000 : (fsm_state == SEND_TO_PC) ? 24'h000000 :
-                         (border_pixel && (selected_filter == EDGE)) ? 24'hFFFFFF :
-                         (border_pixel && (selected_filter == CARTOON)) ? 24'h000000 : vga_rgb_out;
+    else pixel_out_q <= sw_ntsc ? 24'h000000 : (fsm_state == SEND_TO_PC) ? 24'h000000 : vga_rgb_out;
+                         //(border_pixel && filters_en && (selected_filter == EDGE)) ? 24'hFFFFFF :
+                         //(border_pixel && filters_en && (selected_filter == CARTOON)) ? 24'h000000 : vga_rgb_out;
     //pixel_out_q <= sw_ntsc ? 0 : (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF);
     //pixel_out_q <= sw_ntsc ? 0 : vr_pixel_color;
   end  

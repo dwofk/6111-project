@@ -338,7 +338,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    wire [29:0] 	vr_pixel;
    wire [18:0] 	display_addr;
 
-   vram_display #(0,0) /*#(192,144)*/ vd1(reset,clk,hcount,vcount,vr_pixel,
+   vram_display #(7,0) /*#(192,144)*/ vd1(reset,clk,hcount,vcount,vr_pixel,
 		    display_addr,vram_read_data);
 
    // ADV7185 NTSC decoder interface code
@@ -400,12 +400,6 @@ module zbt_6111_sample(beep, audio_reset_b,
   assign {move_text_en, move_graphics_en} = {~move_sw, move_sw};
   
   wire sw_ntsc_n = ~sw_ntsc;
-  
-  ////////////////////////////////////////////////////////////////////////////
-  //
-  // Edge Detection
-  //
-  ////////////////////////////////////////////////////////////////////////////
   
   ////////////////////////////////////////////////////////////////////////////
 
@@ -515,11 +509,19 @@ module zbt_6111_sample(beep, audio_reset_b,
   
   wire [10:0] text_x_pos;
   wire [9:0] text_y_pos;
+  wire [10:0] graphics_x_pos;
+  wire [9:0] graphics_y_pos;
   
   wire [7:0] thr_range, h_thr, s_thr, v_thr;
+
+  wire [7:0] s_offset, v_offset;
+  wire s_dir, v_dir;
   
-  wire [7:0] a0;
+  wire [2:0] selected_filter;
+  wire [1:0] selected_graphic;
   
+  //wire [7:0] a0;
+    
   pixel_sel #(CUSTOM_TEXT_MAXLEN) pixel_sel1(
     .clk          (clk),
     .reset        (reset),
@@ -572,12 +574,22 @@ module zbt_6111_sample(beep, audio_reset_b,
     .vsync_out    (vsync_out),
     .text_x_pos   (text_x_pos),
     .text_y_pos   (text_y_pos),
+    .graphics_x_pos   (graphics_x_pos),
+    .graphics_y_pos   (graphics_y_pos),
     // Hex Display outputs
     .thr_range    (thr_range),
     .h_thr        (h_thr),
     .v_thr        (v_thr),
     .s_thr        (s_thr),
-    .a0           (a0)
+    // Image Enhancement outputs
+    .s_offset           (s_offset),
+    .v_offset           (v_offset),
+    .s_dir              (s_dir),
+    .v_dir              (v_dir),
+    // User Selections
+    .selected_filter    (selected_filter),
+    .selected_graphic   (selected_graphic)
+    //.a0           (a0)
   );
   
   ////////////////////////////////////////////////////////////////////////////
@@ -658,6 +670,9 @@ module zbt_6111_sample(beep, audio_reset_b,
         if (rgb_tx_state_q == 2'b10) uart_tx_counter_q <= uart_tx_counter_q + 1'b1;
       end   
    end
+   
+   assign user1[0] = uart_tx_bit_out; 
+   //assign user1[0] = uart_tx;
   
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -675,23 +690,60 @@ module zbt_6111_sample(beep, audio_reset_b,
    assign vga_out_hsync = hsync_out;
    assign vga_out_vsync = vsync_out;
 
-   ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // LED and HEX16 Display
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  
+   assign led = ~{bram_state, background[1:0], selected_filter[1:0], selected_graphic};
 
    // debugging
    //assign led = ~{vram_addr[18:13],reset,switch[0]};
    //assign led = ~{bram_state,store_bram,fsm_state,move_text_en,move_graphics_en};
    //assign led = ~{5'b00000, uart_wr_i, uart_busy, uart_tx};
-   assign led = ~{1'b0, num_char, char_array_rdy, keyboard_waiting};
+   //assign led = ~{1'b0, num_char, char_array_rdy, keyboard_waiting};
    //assign led = ~{1'b0, num_char, letter_array_rdy, keyboard_waiting};
-   
-   
-   assign user1[0] = uart_tx_bit_out; 
-   //assign user1[0] = uart_tx;
 
-   integer d;
+   //integer d;
    
 	 //displayed on hex display for debugging
    always @(posedge clk) begin
+     case (fsm_state)
+      FSM_IDLE      : begin
+                        dispdata[63:60] <= 4'hF;
+                        dispdata[59:0] <= 0;
+                      end
+      SEL_BKGD      : begin
+                        dispdata[63:60] <= 4'hD;
+                        // output threshold range + hue + saturation + value/brightness thresholds
+                        dispdata[59:0] <= {4'h0, thr_range, 4'h0, h_thr, 4'h0, s_thr, 4'h0, v_thr};
+                      end
+      COLOR_EDITS   : begin
+                        dispdata[63:60] <= 4'hC;
+                        dispdata[59:24] <= 0;
+                        dispdata[23:0] <= {3'b000, s_dir, s_offset, 3'b000, v_dir, v_offset};
+                      end
+      ADD_EDITS     : begin
+                        dispdata[63:60] <= 4'hA;
+                        // output number of characters in custom text input
+                        dispdata[59:48] <= {8'h00, 3'b000, num_char};
+                        // output coordinates of overlapping text
+                        dispdata[48:24] <= {1'b0, text_x_pos, 2'b00, text_y_pos};
+                        // output coordinates of overlapping graphics
+                        dispdata[23:0] <= {1'b0, graphics_x_pos, 2'b00, graphics_y_pos};
+                      end
+      SAVE_TO_BRAM  : begin
+                        dispdata[63:60] <= 4'hB;
+                        dispdata[59:0] <= 0;
+                      end
+      SEND_TO_PC    : begin
+                        dispdata[63:60] <= 4'hE;
+                        dispdata[59:24] <= 0;
+                        dispdata[23:0] <= {4'h0, 2'b00, uart_tx_counter_q};   // num of RGB values transmitted
+                      end
+     endcase
+     
      // dispdata <= {vram_read_data,9'b0,vram_addr};
      //dispdata <= hcount;
      //dispdata[63:56] <= {5'b00000, fsm_state};
@@ -700,9 +752,11 @@ module zbt_6111_sample(beep, audio_reset_b,
      //dispdata[63:60] <= bitcount;
      //dispdata[63:56] <= {6'b00, rgb_tx_state_q};
      //dispdata[55:0] <= {38'd0, uart_tx_counter_q};
-     dispdata[63:0] <= (char_array_rdy) ? char_array[8*CUSTOM_TEXT_MAXLEN-1:8*(CUSTOM_TEXT_MAXLEN-8)] : 0;
+     //dispdata[63:48] <= 0;
+     //dispdata[47:0] <= (char_array_rdy) ? char_array[8*CUSTOM_TEXT_MAXLEN-1:8*(CUSTOM_TEXT_MAXLEN-6)] : 0;
      //dispdata[63:8] <= 0;
      //dispdata[7:0] <= a0;
+     
    end
    
 endmodule
