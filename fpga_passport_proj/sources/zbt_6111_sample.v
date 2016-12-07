@@ -338,7 +338,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    wire [29:0] 	vr_pixel;
    wire [18:0] 	display_addr;
 
-   vram_display #(7,0) /*#(192,144)*/ vd1(reset,clk,hcount,vcount,vr_pixel,
+   vram_display #(1,0) /*#(192,144)*/ vd1(reset,clk,hcount,vcount,vr_pixel,
 		    display_addr,vram_read_data);
 
    // ADV7185 NTSC decoder interface code

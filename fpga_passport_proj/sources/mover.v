@@ -58,10 +58,10 @@ module mover(
   always @(posedge clk) begin
     if (rst) {x_pos_q, y_pos_q} <= {H_INIT, V_INIT};
     else if (vsync_falling && move_en) begin
-      if (up && y_pos_in_disp) y_pos_q <= (y_pos_q == V_MIN) ? y_pos_q : y_pos_q-1'b1;
-      if (down && y_pos_in_disp) y_pos_q <= (y_pos_q == (V_MAX-1)) ? y_pos_q : y_pos_q+1'b1;
-      if (left && x_pos_in_disp) x_pos_q <= (x_pos_q == H_MIN) ? x_pos_q : x_pos_q-1'b1;
-      if (right && x_pos_in_disp) x_pos_q <= (x_pos_q == (H_MAX-1)) ? x_pos_q : x_pos_q+1'b1;
+      if (up && ~down && y_pos_in_disp) y_pos_q <= (y_pos_q == V_MIN) ? y_pos_q : y_pos_q-1'b1;
+      if (down && ~up && y_pos_in_disp) y_pos_q <= (y_pos_q == (V_MAX-1)) ? y_pos_q : y_pos_q+1'b1;
+      if (left && ~right && x_pos_in_disp) x_pos_q <= (x_pos_q == H_MIN) ? x_pos_q : x_pos_q-1'b1;
+      if (right && ~left && x_pos_in_disp) x_pos_q <= (x_pos_q == (H_MAX-1)) ? x_pos_q : x_pos_q+1'b1;
     end
   end
   
