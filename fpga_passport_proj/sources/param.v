@@ -22,8 +22,8 @@
 // Display Parameters
 parameter H_MAX_NTSC = 11'd640;      // frame size of NTSC camera input
 parameter V_MAX_NTSC = 10'd480;      // frame size of NTSC camera input
-parameter HCOUNT_MAX = 11'd1056;
-parameter VCOUNT_MAX = 10'd628;
+//parameter HCOUNT_MAX = 11'd1056;     // for 800x600 resolution
+//parameter VCOUNT_MAX = 10'd628;      // for 800x600 resolution
 
 // FSM States
 parameter FSM_IDLE = 3'b000;

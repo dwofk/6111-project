@@ -329,7 +329,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    wire vram_we;
 
    wire ram0_clk_not_used;
-   zbt_6111 zbt1(clk, 1'b1, vram_we, vram_addr,
+   zbt_6111 zbt0(clk, 1'b1, vram_we, vram_addr,
 		   vram_write_data, vram_read_data,
 		   ram0_clk_not_used,   //to get good timing, don't connect ram_clk to zbt_6111
 		   ram0_we_b, ram0_address, ram0_data, ram0_cen_b);
