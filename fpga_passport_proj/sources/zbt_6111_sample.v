@@ -416,13 +416,22 @@ module zbt_6111_sample(beep, audio_reset_b,
   //
   ////////////////////////////////////////////////////////////////////////////
    
-//  parameter H_OFFSET = 10'd40;
+//  parameter h_offset = 10'd40;
 //  parameter V_OFFSET = 9'd0;
 //  
 //  parameter H_MAX_DISPLAY = 10'd640;
 //  parameter V_MAX_DISPLAY = 9'd400;
+
+  wire [2:0] selected_filter;
+
+  wire [10:0] h_offset = (!filters_en) ? SYNC_DLY :
+                            (selected_filter == SEPIA) ? SYNC_DLY_SEP :
+                            (selected_filter == INVERT) ? SYNC_DLY_INV :
+                            (selected_filter == GRAYSCALE) ? SYNC_DLY_GRY :
+                            (selected_filter == EDGE) ? SYNC_DLY+10'd10 :
+                            (selected_filter == CARTOON) ? SYNC_DLY+10'd10 : SYNC_DLY;    
   
-  wire hcount_in_display_bram = (hcount >= H_OFFSET) && (hcount < (H_MAX_DISPLAY+H_OFFSET));
+  wire hcount_in_display_bram = (hcount >= h_offset) && (hcount < (H_MAX_DISPLAY+h_offset));
   wire vcount_in_display_bram = (vcount >= V_OFFSET) && (vcount < (V_MAX_DISPLAY+V_OFFSET));
   wire in_display_bram = hcount_in_display_bram && vcount_in_display_bram;
   
@@ -517,7 +526,7 @@ module zbt_6111_sample(beep, audio_reset_b,
   wire [7:0] s_offset, v_offset;
   wire s_dir, v_dir;
   
-  wire [2:0] selected_filter;
+  //wire [2:0] selected_filter;
   wire [1:0] selected_graphic;
   
   //wire [7:0] a0;
@@ -558,7 +567,7 @@ module zbt_6111_sample(beep, audio_reset_b,
     .bram_dout    (bram_dout),
     // VGA timing signals
     .hcount       (hcount),
-    //.hoffset      (H_OFFSET),
+    //.hoffset      (h_offset),
     //.hmax         (H_MAX_DISPLAY),
     .vcount       (vcount),
     //.voffset      (V_OFFSET),
@@ -608,7 +617,7 @@ module zbt_6111_sample(beep, audio_reset_b,
     .store_bram  (store_bram),
     .hcount      (hcount),
     .vcount      (vcount),
-    .hoffset     (H_OFFSET),
+    .hoffset     (h_offset),
     .voffset     (V_OFFSET),
     .in_display  (in_display_bram),
     .pixel_out   (pixel_out),

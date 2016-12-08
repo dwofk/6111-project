@@ -98,7 +98,7 @@ parameter SYNC_DLY_SBL = SYNC_DLY + SOBEL_DLY;
 parameter MAX_SYNC_DLY = SYNC_DLY_SBL;
 
 // BRAM Storage
-parameter H_OFFSET = SYNC_DLY;       // for storage in BRAM
+//parameter H_OFFSET = SYNC_DLY;       // for storage in BRAM
 parameter V_OFFSET = 10'd0;          // for storage in BRAM
 parameter H_MAX_DISPLAY = 11'd640;   // for storage in BRAM
 parameter V_MAX_DISPLAY = 10'd400;   // for storage in BRAM
