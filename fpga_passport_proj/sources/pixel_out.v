@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    22:29:17 11/17/2016 
 // Design Name: 
@@ -9,7 +9,11 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Pixel selector module. Instantiates and interconnects the
+//              color space conversion modules, the image enhacenment and
+//              filter effects modules, as well as the text and graphics
+//              generation modules. Processes user button and switch inputs
+//              and selects output VGA pixels accordingly.
 //
 // Dependencies: 
 //
@@ -23,7 +27,7 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     // states
     input [2:0] fsm_state,
     input [1:0] bram_state,
-    // user switch inputs
+    // user switches
     input sw_ntsc,
     input store_bram,
     input enhance_en,
@@ -33,21 +37,20 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     input move_text_en,
     input move_graphics_en,
     input custom_text_en,
-    //input [1:0] filter,
-    // user button inputs
+    // user buttons
     input up, down, left, right,
     input select0, select1, select2, select3,
     input [2:0] background,
-    // custom text gen inputs
+    // custom text gen
     input [5:0] num_char,
     input char_array_rdy,
     input [TEXT_LEN_MAX*8-1:0] char_array,
-    // pixel value inputs
+    // pixel values
     input [29:0] vr_pixel,
     input [7:0] bram_dout,
-    // VGA timing signals
-    input [10:0] hcount, //hoffset, hmax,
-    input [9:0] vcount, //voffset, vmax,
+    // VGA timing
+    input [10:0] hcount,
+    input [9:0] vcount,
     input blank,
     input hsync,
     input vsync,
@@ -61,54 +64,25 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     output [9:0] text_y_pos,
     output [10:0] graphics_x_pos,
     output [9:0] graphics_y_pos,
-    // Hex Display outputs
+    // hex display
     output [7:0] thr_range, h_thr, s_thr, v_thr,
-    // Image Enhacement outputs
+    // image enhacement
     output [7:0] s_offset, v_offset,
     output s_dir, v_dir,
-    // User Selections
+    // user selections
     output[2:0] selected_filter,
     output [1:0] selected_graphic
-    //output [7:0] a0
   );
   
   `include "param.v"
   
-//  // FSM states
-//  localparam FSM_IDLE = 3'b000;
-//  localparam SEL_BKGD = 3'b001;
-//  localparam COLOR_EDITS = 3'b010;
-//  localparam ADD_EDITS = 3'b011;
-//  localparam SAVE_TO_BRAM = 3'b100;
-//  localparam SEND_TO_PC = 3'b101;
-//  
-//  // BRAM states
-//  localparam BRAM_IDLE = 2'b00;
-//  localparam CAPTURE_FRAME = 2'b01;
-//  localparam WRITING_FRAME = 2'b10;
-//  localparam READING_FRAME = 2'b11;
-  
   //wire [2:0] selected_filter;  // used in determining filter module latency -> output
   wire [23:0] vga_rgb_out;     // connected to VGA pixel output
   
-  //parameter FILTER_DLY = (!filters_en) ? 0 :
-  //                         (selected_filter == INVERT) ? INVERT_DLY : SEPIA_DLY;
-  
-  //parameter FILTER_DLY = SEPIA_DLY;
-  
-  //parameter COLOR_PIXEL_DLY = RGB2HSV_DLY + THRESHOLD_DLY;
-  
-//  parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + 
-//                        HSV2RGB_DLY + ENHANCE_DLY + 1;
-//                        
-//  parameter SYNC_DLY_SEP = SYNC_DLY + SEPIA_DLY;                              
-//  parameter SYNC_DLY_INV = SYNC_DLY + INVERT_DLY;
-//  parameter SYNC_DLY_GRY = SYNC_DLY + GRAYSCALE_DLY;
-//  parameter SYNC_DLY_SBL = SYNC_DLY + SOBEL_DLY;
-//                              
-//  parameter MAX_SYNC_DLY = SYNC_DLY_SBL;
-  
+  // ***********************************************
   // YCrCb to RGB Conversion
+  // ***********************************************
+  
   wire [23:0] vr_pixel_color;
   
   ycrcb2rgb ycrcb2rgb_conv(
@@ -121,8 +95,11 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .clk  (clk), 
     .rst  (1'b0)
    );
-  
+
+  // ***********************************************
   // RGB to HSV Conversion
+  // ***********************************************
+  
   wire [23:0] pixel_hsv_out;
   
   rgb2hsv rgb2hsv_conv(
@@ -135,8 +112,11 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .s(pixel_hsv_out[15:8]), 
     .v(pixel_hsv_out[7:0])
   );
-  
+
+  // ***********************************************
   // HSV to RGB Conversion
+  // ***********************************************
+  
   wire [23:0] pixel_hsv_in;
   wire [23:0] pixel_rgb_out;
   
@@ -150,16 +130,15 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .g(pixel_rgb_out[15:8]), 
     .b(pixel_rgb_out[7:0])
   );
-  
-  // Thresholding & Compositing
-  //reg [23:0] pixel_hsv_in_q;
-  //assign pixel_hsv_in = pixel_hsv_in_q;
-  //always @(posedge clk) pixel_hsv_in_q <= pixel_hsv_out;
-  
-  wire chroma_key_match;
+
+  // ***********************************************
+  // Chroma-Key Compositing
+  // ***********************************************
+    
+  wire chroma_key_match; // HSV values match threshholds
   wire [23:0] hsv_chr_out;
-  //wire [7:0] h_thr, s_thr, v_thr;
   
+  // signal allowing users to adjust HSV threshholds
   wire adjust_thr_en = (fsm_state == SEL_BKGD);
   
   chroma_key chroma_key1(
@@ -182,23 +161,24 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
   
   wire [23:0] chr_pixel_out;    // chroma-keyed pixel
   assign chr_pixel_out = (chroma_key_match) ? 24'hD5FFFF : hsv_chr_out;
-  
+
+  // ***********************************************
   // Image Enhancement
-  //wire enhance_enable = enhance_en && (fsm_state == COLOR_EDITS);
+  // ***********************************************
+  
+  // signal allowing users to adjust saturation and brightness values
   wire enhance_user_in_en = enhance_en && (fsm_state == COLOR_EDITS);
   
   enhance enhance1(
     .clk                (clk),
     .rst                (reset),
 	  .vsync              (vsync),
-    //.fsm_state          (fsm_state),
     .enhance_en         (enhance_en),
     .enhance_user_in_en (enhance_user_in_en),
     .inc_saturation     (up),
     .dec_saturation     (down),
     .inc_brightness     (right),
     .dec_brightness     (left),
-    //.reset_enhance      (center),
     .hsv_in             (chr_pixel_out),
     .hsv_out            (pixel_hsv_in),
     .s_offset           (s_offset),
@@ -206,10 +186,14 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .s_dir              (s_dir),
     .v_dir              (v_dir)
   );
-  
+
+  // ***********************************************
   // Filter Effects
-  wire [23:0] pixel_filtered;
-  //wire filters_enable = filters_en && (fsm_state == COLOR_EDITS);
+  // ***********************************************
+  
+  wire [23:0] pixel_filtered; // pixel output after filter effects
+  
+  // signal allowing users to select filter effect
   wire filters_user_in_en = filters_en && (fsm_state == COLOR_EDITS);
   
   filters filters1(
@@ -226,12 +210,13 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .rgb_in               (pixel_rgb_out),
     .rgb_out              (pixel_filtered),
     .filter               (selected_filter)
-    //.a0                   (a0)
   );
-    
+
+  // ***********************************************
+  // Text Overlay
+  // ***********************************************
+  
   // Text Movement
-  //wire [10:0] text_x_pos;
-  //wire [9:0] text_y_pos;
   wire text_move_enable = text_en && move_text_en && (fsm_state == ADD_EDITS);
   
   mover text_mover(
@@ -243,10 +228,6 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .left     (left),
     .right    (right),
     .vsync    (vsync),
-    //.hoffset  (hoffset),
-    //.voffset  (voffset),
-    //.hmax     (hmax),
-    //.vmax     (vmax),
     .x_pos    (text_x_pos),
     .y_pos    (text_y_pos)
   );
@@ -258,15 +239,7 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
       text_crosshair_pixel_q <= 24'hFF0000;
     else text_crosshair_pixel_q <= 24'h000000;
   end
-  
-  // Graphics Crosshair
-  reg [23:0] graphics_crosshair_pixel_q;
-  always @(posedge clk) begin
-    if (graphics_en && ((hcount == graphics_x_pos) || (vcount == graphics_y_pos)))
-      graphics_crosshair_pixel_q <= 24'h0000FF;
-    else graphics_crosshair_pixel_q <= 24'h000000;
-  end
-  
+
   // Text Generation
   wire [23:0] text_gen_pixel;
   
@@ -283,20 +256,12 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .custom     (custom_text_en),
     .pixel      (text_gen_pixel)
   );
+
+  // ***********************************************
+  // Graphics Overlay
+  // ***********************************************
   
-/*  stringmaker text_gen(
-    .clk        (clk),
-    .x          (text_x_pos),
-    .hcount     (hcount),
-    .y          (text_y_pos),
-    .vcount     (vcount), 
-    .background (background[1:0]),
-    .pixel      (text_gen_pixel)
-  );*/
-    
   // Graphics Movement
-  //wire [10:0] graphics_x_pos;
-  //wire [9:0] graphics_y_pos;
   wire graphics_move_enable = graphics_en && move_graphics_en && (fsm_state == ADD_EDITS);
 
   mover graphics_mover(
@@ -308,13 +273,17 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .left     (left),
     .right    (right),
     .vsync    (vsync),
-    //.hoffset  (hoffset),
-    //.voffset  (voffset),
-    //.hmax     (hmax),
-    //.vmax     (vmax),
     .x_pos    (graphics_x_pos),
     .y_pos    (graphics_y_pos)
   );
+  
+  // Graphics Crosshair
+  reg [23:0] graphics_crosshair_pixel_q;
+  always @(posedge clk) begin
+    if (graphics_en && ((hcount == graphics_x_pos) || (vcount == graphics_y_pos)))
+      graphics_crosshair_pixel_q <= 24'h0000FF;
+    else graphics_crosshair_pixel_q <= 24'h000000;
+  end
   
   // Graphics Generation
   wire [23:0] graphics_gen_pixel;
@@ -340,11 +309,19 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .pixel      (graphics_gen_pixel)
   );
   
-  // Delay Sync Signals
+  // ***********************************************
+  // Delay Sync Signals (Shift Registers)
+  // ***********************************************
+  
+  // VGA sync timing signals are delayed in order to take into account
+  // the pipelined nature of all of the image processing modules; the
+  // length of the delay required depends on which filter is selected.
+  // Delays are defined in the parameters file - param.v
+  
+  // shift registers that can accomodate longest possible delay
   reg [0:0] hsync_shift_reg[MAX_SYNC_DLY-1:0];
   reg [0:0] vsync_shift_reg[MAX_SYNC_DLY-1:0];
   reg [0:0] blank_shift_reg[MAX_SYNC_DLY-1:0];
-  /*reg [23:0] color_pixel_shift_reg[COLOR_PIXEL_DLY-1:0];*/
 
   integer i;
   
@@ -358,43 +335,53 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
       vsync_shift_reg[i] <= vsync_shift_reg[i-1];
       blank_shift_reg[i] <= blank_shift_reg[i-1];
     end
-    /*for (i=1; i<COLOR_PIXEL_DLY; i=i+1)
-      color_pixel_shift_reg[i] <= color_pixel_shift_reg[i-1];*/
+    
   end
   
-  // Output Pixel
-  //assign vga_rgb_out = pixel_filtered + text_crosshair_pixel_q + graphics_crosshair_pixel_q;
+  // ***********************************************
+  // Output VGA Pixel
+  // ***********************************************
   
-  //assign vga_rgb_out = (text_en && (text_crosshair_pixel_q != 24'd0)) ? text_crosshair_pixel_q :
-  //                      (graphics_en && (graphics_crosshair_pixel_q != 24'd0)) ? graphics_crosshair_pixel_q : pixel_filtered;
+  // overlapping pixels: text > graphics > filtered/processed pixel
+  
+  // text and graphics are generated separately on a white background, so the
+  // non-white pixels correspond to the text and graphics being overlayed
   
   assign vga_rgb_out = (text_en && (text_gen_pixel != 24'hFFFFFF)) ? text_gen_pixel :
                         (graphics_en && (graphics_gen_pixel != 24'hFFFFFF)) ? graphics_gen_pixel : pixel_filtered;
                                               
-  reg [23:0] pixel_out_q;
-  //wire in_display_rd = hcount < 640 && vcount < 400;
+  reg [23:0] pixel_out_q; // registered output
 
-  wire h_border_pixel = (hcount<2) || ((hcount>(H_MAX_NTSC-3)) && (hcount<H_MAX_NTSC));
-  wire v_border_pixel = (vcount<2) || ((vcount>(V_MAX_NTSC-3)) && (vcount<V_MAX_NTSC));
-  wire border_pixel = h_border_pixel || v_border_pixel;
+  //wire h_border_pixel = (hcount<2) || ((hcount>(H_MAX_NTSC-3)) && (hcount<H_MAX_NTSC));
+  //wire v_border_pixel = (vcount<2) || ((vcount>(V_MAX_NTSC-3)) && (vcount<V_MAX_NTSC));
+  //wire border_pixel = h_border_pixel || v_border_pixel;
+  
+  wire [23:0] bram_dout_24bit = {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0};
   
   always @(posedge clk) begin
     //pixel_out_q <= sw_ntsc ? 0 : pixel_hsv_out;
     //pixel_out_q <= sw_ntsc ? 0 : store_bram ? (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF) : vga_rgb_out;
+    
+    // if reading from BRAM and displaying stored data, display 24-bit BRAM output
+    // otherwise, if reading from BRAM and transmitting data to PC, display black screen
+    // otherwise, display VGA RGB pixel or the start splash screen 
+    
     if ((bram_state == READING_FRAME) && !(fsm_state == SEND_TO_PC))
-      pixel_out_q <= in_display_bram ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF;
+      pixel_out_q <= in_display_bram ? bram_dout_24bit : 24'hFFFFFF;
     else pixel_out_q <= sw_ntsc ? 24'h000000 : (fsm_state == SEND_TO_PC) ? 24'h000000 : vga_rgb_out;
-                         //(border_pixel && filters_en && (selected_filter == EDGE)) ? 24'hFFFFFF :
-                         //(border_pixel && filters_en && (selected_filter == CARTOON)) ? 24'h000000 : vga_rgb_out;
+
     //pixel_out_q <= sw_ntsc ? 0 : (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF);
     //pixel_out_q <= sw_ntsc ? 0 : vr_pixel_color;
   end  
   
   // Output Signal Assignments
   assign pixel_out = pixel_out_q;
-//  assign blank_out = blank_shift_reg[SYNC_DLY-1];
-//  assign hsync_out = hsync_shift_reg[SYNC_DLY-1];
-//  assign vsync_out = vsync_shift_reg[SYNC_DLY-1];
+  
+  // ***********************************************
+  // Delay Sync Signals (Assignments)
+  // ***********************************************
+  
+  // VGA sync signals are delayed according to which filter is selected.
 
   assign blank_out = (!filters_en) ? blank_shift_reg[SYNC_DLY-1] :
                         (selected_filter == SEPIA) ? blank_shift_reg[SYNC_DLY_SEP-1] :

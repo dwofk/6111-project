@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    18:51:21 11/20/2016 
 // Design Name: 
@@ -9,7 +9,7 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Implements RGB to sepia tone conversion. Pipelined with 4 stages.
 //
 // Dependencies: 
 //
@@ -20,7 +20,6 @@
 //////////////////////////////////////////////////////////////////////////////////
 module sepia(
     input clk, rst,
-    //input sepia_en,
     input [7:0] r_in, g_in, b_in,
     output [7:0] r_out, g_out, b_out
   );
@@ -28,9 +27,6 @@ module sepia(
   // Sepia conversion formulas obtained from
   // https://www.dyclassroom.com/image-processing-project/
   // how-to-convert-a-color-image-into-sepia-image
-  
-  // *** PIPELINED ***
-  // latency = 4 clk cycles
   
   localparam TR_R = 8'd101; // 0.393
   localparam TR_G = 8'd197; // 0.769

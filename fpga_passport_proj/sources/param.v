@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    18:13:32 11/29/2016 
 // Design Name: 
@@ -9,7 +9,7 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Defines values for various system parameters.
 //
 // Dependencies: 
 //
@@ -39,36 +39,6 @@ parameter CAPTURE_FRAME = 2'b01;
 parameter WRITING_FRAME = 2'b10;
 parameter READING_FRAME = 2'b11;
 
-// Constants
-parameter CUSTOM_TEXT_MAXLEN = 20;
-
-// Filter Types
-parameter SEPIA = 3'b000;
-parameter INVERT = 3'b001;
-parameter EDGE = 3'b010;
-parameter CARTOON = 3'b011;
-parameter GRAYSCALE = 3'b100;
-
-// Delay Parameters
-parameter YCRCB2RGB_DLY = 4;
-parameter RGB2HSV_DLY = 23;
-parameter THRESHOLD_DLY = 1;
-parameter HSV2RGB_DLY = 10;
-parameter ENHANCE_DLY = 1;
-
-// Filter Module Latencies
-parameter INVERT_DLY = 1;
-parameter SEPIA_DLY = 4;
-parameter GRAYSCALE_DLY = 3;
-
-parameter LINE_LEN = 1056;
-parameter LINE_BUF_DLY = LINE_LEN*2 + 3 + 1;
-parameter SOBEL_OP_DLY = 4;
-parameter EDGE_DET_DLY = 1;
-parameter GAUSSIAN_DLY = 3;
-
-parameter SOBEL_DLY = GRAYSCALE_DLY + LINE_BUF_DLY + SOBEL_OP_DLY + EDGE_DET_DLY;
-
 // Backgrounds
 parameter PARIS = 3'b000;
 parameter ROME = 3'b001;
@@ -82,23 +52,51 @@ parameter SUNGLASSES = 2'b01;
 parameter SAFARI_HAT = 2'b10;
 parameter CROWN = 2'b11;
 
-// Edge Detection
-parameter GRADIENT_EDGE_THRESHOLD = 15'd50;
-parameter CARTOON_EDGE_THRESHOLD = 15'd100;
+// Constants
+parameter CUSTOM_TEXT_MAXLEN = 20;
 
-// Sync Delay
-parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + 
-                      HSV2RGB_DLY + ENHANCE_DLY + 1;
+// Filter Types
+parameter SEPIA = 3'b000;
+parameter INVERT = 3'b001;
+parameter EDGE = 3'b010;
+parameter CARTOON = 3'b011;
+parameter GRAYSCALE = 3'b100;
+
+// Pipeline Stages
+parameter YCRCB2RGB_DLY = 4;
+parameter RGB2HSV_DLY = 23;
+parameter THRESHOLD_DLY = 1;
+parameter HSV2RGB_DLY = 10;
+parameter ENHANCE_DLY = 1;
+
+parameter INVERT_DLY = 1;
+parameter SEPIA_DLY = 4;
+parameter GRAYSCALE_DLY = 3;
+
+parameter LINE_LEN = 1056;
+parameter LINE_BUF_DLY = LINE_LEN*2 + 3 + 1;
+parameter SOBEL_OP_DLY = 4;
+parameter EDGE_DET_DLY = 1;
+parameter GAUSSIAN_DLY = 3;
+
+parameter SOBEL_DLY = GRAYSCALE_DLY + LINE_BUF_DLY + SOBEL_OP_DLY + EDGE_DET_DLY;
+
+// Edge Detection
+parameter GRADIENT_EDGE_THRESHOLD = 15'd50; // for sketch filter effect
+parameter CARTOON_EDGE_THRESHOLD = 15'd100; // for cartoon filter effect
+
+// Sync Delay Values
+parameter SYNC_DLY = YCRCB2RGB_DLY + RGB2HSV_DLY + THRESHOLD_DLY + HSV2RGB_DLY + ENHANCE_DLY + 1;
                       
 parameter SYNC_DLY_SEP = SYNC_DLY + SEPIA_DLY;                              
 parameter SYNC_DLY_INV = SYNC_DLY + INVERT_DLY;
 parameter SYNC_DLY_GRY = SYNC_DLY + GRAYSCALE_DLY;
-parameter SYNC_DLY_SBL = SYNC_DLY + SOBEL_DLY;
+parameter SYNC_DLY_SBL = SYNC_DLY + SOBEL_DLY; // applies to both sketch and cartoon filter effects
                             
-parameter MAX_SYNC_DLY = SYNC_DLY_SBL;
+parameter MAX_SYNC_DLY = SYNC_DLY_SBL; // max # of stages in pipelined design
 
 // BRAM Storage
-//parameter H_OFFSET = SYNC_DLY;       // for storage in BRAM
-parameter V_OFFSET = 10'd0;          // for storage in BRAM
+//parameter H_OFFSET = SYNC_DLY;       // -> redefined as conditional assignment in zbt_6111_sample
+parameter V_OFFSET = 10'd0;
 parameter H_MAX_DISPLAY = 11'd640;   // for storage in BRAM
 parameter V_MAX_DISPLAY = 10'd400;   // for storage in BRAM

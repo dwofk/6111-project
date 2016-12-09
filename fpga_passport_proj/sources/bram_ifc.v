@@ -1,3 +1,30 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: Diana Wofk
+// 
+// Create Date:     
+// Design Name: 
+// Module Name:    frame_bram_ifc 
+// Project Name: 
+// Target Devices: 
+// Tool versions: 
+// Description: Module interfacing with BRAM IP. Stores what is currently being
+//              displayed via VGA into BRAM; can only store 600*400 bytes. Only
+//              600x400 8-bit RGB values are saved of the 640x480 24-bit image.
+//              A user input switch enables writing to BRAM; data is read out
+//              automatically after it a frame/image has been fully written.
+//              Turning switch off resets BRAM FSM and allows stored data to be 
+//              over-written with new data the next time the switch is raised.
+//
+// Dependencies: 
+//
+// Revision: 
+// Revision 0.01 - File Created
+// Additional Comments: 
+//
+//////////////////////////////////////////////////////////////////////////////////
+
 module frame_bram_ifc(
     input clk, rst,
     input store_bram,
@@ -5,25 +32,20 @@ module frame_bram_ifc(
     input [9:0] vcount,
     input [10:0] hoffset,
     input [9:0] voffset,
-    input in_display,
-    input [23:0] pixel_out,
+    input [17:0] tx_counter, // read address when transmitting stored data to PC
+    input in_display,         
+    input [23:0] pixel_out,  // pixel displayed via VGA
     input [2:0] fsm_state,
-    input [17:0] tx_counter,
-    //input transmitting,
     output [7:0] bram_dout,
     output [1:0] bram_state
   );  
   
   `include "param.v"
   
-//  localparam BRAM_IDLE = 2'b00;
-//  localparam CAPTURE_FRAME = 2'b01;
-//  localparam WRITING_FRAME = 2'b10;
-//  localparam READING_FRAME = 2'b11;
-  
-  reg [1:0] state_q = 2'b00;
+  reg [1:0] state_q = BRAM_IDLE;
   assign bram_state = state_q;
   
+  // edge detection on store_bram switch
   reg store_bram_d_q; // delayed store_bram signal
   always @(posedge clk) store_bram_d_q <= store_bram;
   
@@ -34,8 +56,8 @@ module frame_bram_ifc(
   reg [17:0] write_counter_q = 0; 
   reg [17:0] read_counter_q = 0; 
   
-  //wire in_display_rd = hcount < 640 && vcount < 400;
-  wire frame_loaded = (write_counter_q == 18'd255999);
+  // control signals for progressing through BRAM FSM states
+  wire frame_loaded = (write_counter_q == 18'd255999);      // 600*400 = 256000
   wire at_origin = (hcount==hoffset) && (vcount==voffset);
   
   // BRAM signal declarations
@@ -59,8 +81,10 @@ module frame_bram_ifc(
                         read_counter_q <= 0;
                         state_q <= (bram_sw_rising) ? CAPTURE_FRAME : BRAM_IDLE;
                        end
-             
+                       
       CAPTURE_FRAME : state_q <= (at_origin) ? WRITING_FRAME : CAPTURE_FRAME;
+                      // waiting to begin writing frame into BRAM; begin writing when h&vcount match
+                      // offsets, i.e. when pixel_out corresponds to the first (top left) pixel of frame
       
       WRITING_FRAME : begin
                         if (frame_bram_wea) write_counter_q <= write_counter_q+1'b1;
@@ -68,6 +92,7 @@ module frame_bram_ifc(
                       end
       
       READING_FRAME : begin
+                        // continuously read out from BRAM and output stored data when in the 640x480 display area
                         if (in_display) read_counter_q <= (read_counter_q == 18'd255999) ? 0 : read_counter_q+1'b1;
                         state_q <= (bram_sw_falling) ? BRAM_IDLE : READING_FRAME;
                       end

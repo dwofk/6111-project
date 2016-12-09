@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    15:38:38 12/02/2016 
 // Design Name: 
@@ -9,7 +9,12 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Implements a sketch effect as well as a cartoon effect. Takes both
+//              24-bit color RGB and 8-bit grayscale as input. Processes grayscale
+//              input with 3x3 Sobel operator to detect edges. Applies 3x3 Gaussian
+//              kernel to the color RGB input to create a slight blur. Edge 
+//              detection produces a sketch effect on its own and a cartoon effect
+//              when combined with blurred 8-bit color. 24-bit RGB pixel output.
 //
 // Dependencies: 
 //
@@ -24,8 +29,8 @@ module cartoon(
     input [9:0] vcount,
     input [7:0] rgb_gray,
     input [23:0] rgb_in,
-    output [23:0] rgb_edge,
-    output [23:0] rgb_cartoon
+    output [23:0] rgb_edge,     // sketch filter effect
+    output [23:0] rgb_cartoon   // cartoon filter effect
   );
   
   `include "param.v"
@@ -56,7 +61,7 @@ module cartoon(
   wire [1:0] a0b, a1b, a2b, a7b, pix_b, a3b, a6b, a5b, a4b;
   line_buf #(2) gauss_b_buf(clk, rst, rgb_in[7:6], a0b, a1b, a2b, a7b, pix_b, a3b, a6b, a5b, a4b);
 
-  wire [7:0] rgb_gauss;
+  wire [7:0] rgb_gauss; // 8-bit blurred RGB value
   gaussian gauss_blur(clk, rst, a0r, a1r, a2r, a7r, pix_r, a3r, a6r, a5r, a4r,
                        a0g, a1g, a2g, a7g, pix_g, a3g, a6g, a5g, a4g,
                        a0b, a1b, a2b, a7b, pix_b, a3b, a6b, a5b, a4b, rgb_gauss);
@@ -65,28 +70,24 @@ module cartoon(
   // RGB OUTPUT
   ////////////////////////////////////////////////////////////////////////////////
   
-  localparam CARTOON_RGB_DLY = SOBEL_DLY-LINE_BUF_DLY-GAUSSIAN_DLY;
-  //localparam CARTOON_RGB_DLY = SOBEL_DLY;
+  // Blurred color pixels need to be delayed to be in sync with edge detector module...
   
-  reg [7:0] rgb_color_reg[CARTOON_RGB_DLY-1:0];
+  localparam CARTOON_RGB_DLY = SOBEL_DLY-LINE_BUF_DLY-GAUSSIAN_DLY;
+  reg [7:0] rgb_color_reg[CARTOON_RGB_DLY-1:0]; // shift register for delaying blurred pixels
 
   integer i;
   
-  // delay blur RGB to sync with edge pixel output
+  // delay blurred RGB to sync with edge pixel output
   always @(posedge clk) begin
-    //rgb_color_reg[0] <= {rgb_in[23:21], rgb_in[15:13], rgb_in[7:6]};
     rgb_color_reg[0] <= rgb_gauss;
     for (i=1; i<(CARTOON_RGB_DLY); i=i+1)
       rgb_color_reg[i] <= rgb_color_reg[i-1];
   end
   
-  wire [7:0] rgb_color = rgb_color_reg[CARTOON_RGB_DLY-1];
-  
-//  wire h_border_pixel = (hcount == HCOUNT_MAX) || (hcount == H_MAX_NTSC-1);
-//  wire v_border_pixel = (vcount == VCOUNT_MAX) || (vcount == V_MAX_NTSC-1);
-//  wire border_pixel = h_border_pixel && v_border_pixel;
-  
+  wire [7:0] rgb_color = rgb_color_reg[CARTOON_RGB_DLY-1]; // delayed blurred RGB value
+  wire [23:0] rgb_color_24bit = {rgb_color[7:5],5'd0,rgb_color[4:2],5'd0,rgb_color[1:0],6'd0};
+
   assign rgb_edge = pixel_edge ? 24'h000000 : 24'hFFFFFF;
-  assign rgb_cartoon = cartoon_edge ? 24'h000000 : {rgb_color[7:5],5'd0,rgb_color[4:2],5'd0,rgb_color[1:0],6'd0};
+  assign rgb_cartoon = cartoon_edge ? 24'h000000 : rgb_color_24bit;
 
 endmodule

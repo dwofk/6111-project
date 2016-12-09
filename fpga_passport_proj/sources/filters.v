@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    20:17:14 11/20/2016 
 // Design Name: 
@@ -9,7 +9,9 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Instantiates 4 filter effects modules. Processes user
+//              button input to determine which filter has been selected. 
+//              Chooses output pixel based on the selected filter. 
 //
 // Dependencies: 
 //
@@ -20,8 +22,8 @@
 //////////////////////////////////////////////////////////////////////////////////
 module filters(
     input clk, rst,
-    input filters_en,
-    input filters_user_in_en,
+    input filters_en,           // enable filters
+    input filters_user_in_en,   // assert to allow users to change filter
     input select0,
     input select1,
     input select2,
@@ -31,14 +33,13 @@ module filters(
     input [23:0] rgb_in,
     output [23:0] rgb_out,
     output [2:0] filter
-    //output [7:0] a0
   );
   
   `include "param.v"
   
-  reg [2:0] filter_q = GRAYSCALE;
+  reg [2:0] filter_q = GRAYSCALE;   // default to grayscale
   
-  wire sel_all = select0 && select1 && select2 && select3;
+  wire sel_all = select0 && select1 && select2 && select3;  // all buttons pressed
   
   // determine which filter was selected
   always @(posedge clk) begin
@@ -49,7 +50,7 @@ module filters(
     if (filters_en && filters_user_in_en && sel_all) filter_q <= GRAYSCALE;
   end
 
-  // FILTER INSTANTIATIONS
+  // Filter Instantiations
   wire [23:0] rgb_invert;
   wire [23:0] rgb_sepia;
   wire [23:0] rgb_gray;
@@ -100,6 +101,7 @@ module filters(
     .rgb_cartoon  (rgb_cartoon)
   );
   
+  // Output Assignments
   assign filter = filter_q;
   assign rgb_out = (!filters_en) ? rgb_in :
                     (filter_q == SEPIA) ? rgb_sepia :

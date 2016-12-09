@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    20:33:38 11/07/2016 
 // Design Name: 
@@ -9,7 +9,8 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Converts HSV values into RGB values. Conversion uses only
+//              integer math. Pipelined with 10 stages.
 //
 // Dependencies: 
 //
@@ -32,9 +33,6 @@ module hsv2rgb(
     // HSV to RGB conversion using integer math
     // algorithm referenced from following source:
     // http://web.mit.edu/storborg/Public/hsvtorgb.c
-	 
-	 // *** PIPELINED ***
-	 // latency = 10 clk cycles
     
     // latched inputs
     reg [7:0] h_q, s_q, v_q;
@@ -53,8 +51,8 @@ module hsv2rgb(
     reg [15:0] p3_q, q3_q, t3_q;
     
     // delayed signals
-    reg [7:0] h1_q, h2_q;														// delayed hue
-    reg [7:0] s1_q, s2_q, s3_q, s4_q, s5_q;								// delayed saturation
+    reg [7:0] h1_q, h2_q;														              // delayed hue
+    reg [7:0] s1_q, s2_q, s3_q, s4_q, s5_q;								      // delayed saturation
     reg [7:0] v1_q, v2_q, v3_q, v4_q, v5_q, v6_q, v7_q, v8_q;		// delayed value
     reg [3:0] hrg1_q, hrg2_q, hrg3_q, hrg4_q, hrg5_q, hrg6_q;		// delayed hue region
     

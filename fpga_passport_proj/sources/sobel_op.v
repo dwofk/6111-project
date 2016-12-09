@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    14:44:07 12/02/2016 
 // Design Name: 
@@ -9,7 +9,8 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Implements and applies a 3x3 Sobel operator to an input matrix of
+//              values. Outputs a gradient value. Pipelined with 4 stages.
 //
 // Dependencies: 
 //
@@ -35,7 +36,7 @@ module sobel_op(
   
   //  labeling of pixels
   //    a0    a1    a2
-  //    a7   (ij)   a3
+  //    a7   pix    a3
   //    a6    a5    a4  
   
   // partial derivatives
@@ -45,10 +46,10 @@ module sobel_op(
   // gradient computation: G = sqrt(gx^2 + gy^2)
   // approximation: G = abs(gx) + abs(gy)
   
-  reg [7:0] a0_q, a1_q, a2_q, a7_q, a3_q, a6_q, a5_q, a4_q;
+  reg [7:0] a0_q, a1_q, a2_q, a7_q, a3_q, a6_q, a5_q, a4_q;  // to latch inputs
   
-  reg signed [15:0] gx_q, gy_q;
-  reg [15:0] abs_gx_q, abs_gy_q;
+  reg signed [15:0] gx_q, gy_q;   // partial derivatives
+  reg [15:0] abs_gx_q, abs_gy_q;  // absolute values
   reg [15:0] gradient_q;
   
   assign gradient = gradient_q;

@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    21:21:21 12/01/2016 
 // Design Name: 
@@ -9,7 +9,8 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Implements conversion from RGB color to grayscale.
+//              Pipelined with 3 stages.
 //
 // Dependencies: 
 //
@@ -26,9 +27,6 @@ module grayscale(
   
   // Conversion from RGB color to grayscale
   // RGB(gray) = 0.2989R + 0.5870G + 0.1140B
-  
-  // *** PIPELINED ***
-  // latency = 3 clk cycles
   
   localparam R = 76;    // 0.2989
   localparam G = 150;   // 0.5870

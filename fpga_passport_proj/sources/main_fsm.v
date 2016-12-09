@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk (diana96@mit.edu)
 // 
 // Create Date:    11:51:35 11/21/2016 
 // Design Name: 
@@ -9,7 +9,7 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Main FSM for the system.
 //
 // Dependencies: 
 //
@@ -20,7 +20,6 @@
 //////////////////////////////////////////////////////////////////////////////////
 module main_fsm(
     input clk, rst,
-    //input fsm_reset,
     input sw_ntsc,
     input enter,
     input store_bram,
@@ -29,13 +28,6 @@ module main_fsm(
   
   `include "param.v"
   
-//  localparam FSM_IDLE = 3'b000;
-//  localparam SEL_BKGD = 3'b001;
-//  localparam COLOR_EDITS = 3'b010;
-//  localparam ADD_EDITS = 3'b011;
-//  localparam SAVE_TO_BRAM = 3'b100;
-//  localparam SEND_TO_PC = 3'b101;
-  
   reg [2:0] fsm_state_q = 3'b000;
   reg [2:0] next_state;
   
@@ -43,7 +35,7 @@ module main_fsm(
   
   ///////////////////////////////////////////////////////////////////////////////
   //
-  // EDGE DETECTION
+  // INPUT SIGNAL EDGE DETECTION
   //
   ////////////////////////////////////////////////////////////////////////////////
 
@@ -99,7 +91,6 @@ module main_fsm(
   end
   
   always @(posedge clk) begin
-    //if (fsm_reset) fsm_state_q <= IDLE;
     if (rst) fsm_state_q <= FSM_IDLE;
     else fsm_state_q <= next_state;
   end

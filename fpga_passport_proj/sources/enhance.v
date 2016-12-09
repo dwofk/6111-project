@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    11:02:04 11/18/2016 
 // Design Name: 
@@ -9,7 +9,9 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Implements the image enhacement feature, which allows users to
+//              adjust the saturation and brightness values of pixels in an
+//              image and view the changes on screen in real-time.
 //
 // Dependencies: 
 //
@@ -21,14 +23,12 @@
 module enhance(
     input clk, rst,
     input vsync,
-    //input [2:0] fsm_state,
-    input enhance_en,
-    input enhance_user_in_en,
+    input enhance_en,           // enable image enhancement
+    input enhance_user_in_en,   // allow user to adjust S and V values
     input inc_saturation,
     input dec_saturation,
     input inc_brightness,
     input dec_brightness,
-    //input reset_enhance,
     input [23:0] hsv_in,
     output reg [23:0] hsv_out,
     output [7:0] s_offset, v_offset,
@@ -51,8 +51,10 @@ module enhance(
   wire vsync_falling;
   assign vsync_falling = (vsync !== vsync_q) && (vsync === 1'b0);
   
-  wire zero_saturation = inc_saturation && dec_saturation;
-  wire zero_brightness = inc_brightness && dec_brightness;
+  wire zero_saturation = inc_saturation && dec_saturation; // don't change saturation
+  wire zero_brightness = inc_brightness && dec_brightness; // don't change brightness
+  
+  // reset: set saturation and brightness to original values
   wire reset_enhance = enhance_user_in_en && zero_saturation && zero_brightness; 
   
   // adjust S/V offsets based on user input

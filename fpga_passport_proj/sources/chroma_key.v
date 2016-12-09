@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    15:30:49 11/22/2016 
 // Design Name: 
@@ -9,7 +9,10 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Determines whether the HSV values of the input pixel fall into a
+//              pre-defined range and if so, marks that pixel as having matched
+//              the chroma key. Nominal HSV threshholds are defined as parameters,
+//              but threshholds used in color detection can be adjusted by user.
 //
 // Dependencies: 
 //
@@ -23,7 +26,7 @@ module chroma_key(
     input vsync,
     input [23:0] hsv_chr_in,
     input up, down, left, right,
-    input adjust_thr_en,
+    input adjust_thr_en,  // allows user to adjust threshholds
     output [7:0] range, h_nom, s_nom, v_nom,
     output reg [23:0] hsv_chr_out,
     output reg chroma_key_match
@@ -41,32 +44,37 @@ module chroma_key(
   localparam V_RANGE_POS = 8'd50;
   localparam V_RANGE_NEG = 8'd100;
   
-  localparam RANGE_NOMINAL = 8'd50; // for user-set H and S ranges
+  localparam RANGE_NOMINAL = 8'd50;
   
+  // HSV threshholds that can all be adjusted by user
   reg [7:0] h_nom_q = H_NOMINAL;
   reg [7:0] s_nom_q = S_NOMINAL;
   reg [7:0] v_nom_q = V_NOMINAL;
-  reg [7:0] range_q = RANGE_NOMINAL;
+  reg [7:0] range_q = RANGE_NOMINAL; // threshhold +/- range for H and S
   
   assign {range, h_nom, s_nom, v_nom} = {range_q, h_nom_q, s_nom_q, v_nom_q};
   
+  // max and min for H
   wire [7:0] h_max = h_nom_q+range_q;
   wire [7:0] h_min = h_nom_q-range_q;
   
+  // max and min for S
   wire [7:0] s_max = s_nom_q+range_q;
   wire [7:0] s_min = s_nom_q-range_q;
   
+  // max and min for V
   wire [7:0] v_max = v_nom_q+V_RANGE_POS;
   wire [7:0] v_min = v_nom_q-V_RANGE_NEG;
   
+  // HSV values of input pixel
   wire [7:0] h_chr_in = hsv_chr_in[23:16];
   wire [7:0] s_chr_in = hsv_chr_in[15:8];
   wire [7:0] v_chr_in = hsv_chr_in[7:0];
   
+  // determine whether HSV values are in range
   wire h_in_range = (h_chr_in >= h_min) && (h_chr_in <= h_max);
   wire s_in_range = (s_chr_in >= s_min) && (s_chr_in <= s_max);
   wire v_in_range = (v_chr_in >= v_min) && (v_chr_in <= v_max);
-  
   wire in_range = h_in_range && s_in_range && v_in_range;
   
   // detect falling edge of vsync
@@ -88,7 +96,7 @@ module chroma_key(
       v_nom_q <= V_NOMINAL;
       range_q <= RANGE_NOMINAL;
     end else if (vsync_falling && adjust_thr_en) begin
-      vsync_counter <= vsync_counter+1'b1;
+      vsync_counter <= vsync_counter+1'b1; // to slow down adjustment speed
       if (vsync_counter == 4'd15) begin
         if (!left && !right) begin              // change H threshold
           if (up && (h_nom_q < 8'd255)) h_nom_q <= h_nom_q+1'b1;

@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Diana Wofk
 // 
 // Create Date:    17:57:54 12/02/2016 
 // Design Name: 
@@ -9,7 +9,8 @@
 // Project Name: 
 // Target Devices: 
 // Tool versions: 
-// Description: 
+// Description: Implements and applies a 3x3 Gaussian blur to an input matrix of
+//              values. Outputs 8-bit blurred RGB. Pipelined with 3 stages.
 //
 // Dependencies: 
 //
@@ -42,19 +43,22 @@ module gaussian(
   //  1/16  ( 2 4 2 )
   //        ( 1 2 1 )
   
-  // blur each channel separately
+  // blur each channel separately!
   
+  // latched input values
   reg [2:0] a0r_q, a1r_q, a2r_q, a7r_q, pix_r_q, a3r_q, a6r_q, a5r_q, a4r_q;
   reg [2:0] a0g_q, a1g_q, a2g_q, a7g_q, pix_g_q, a3g_q, a6g_q, a5g_q, a4g_q;
   reg [1:0] a0b_q, a1b_q, a2b_q, a7b_q, pix_b_q, a3b_q, a6b_q, a5b_q, a4b_q;
 
+  // intermediate sum values
   reg [6:0] r_sum_q;
   reg [6:0] g_sum_q;
   reg [5:0] b_sum_q;
   
+  // registered outputs
   reg [2:0] r_out_q;
   reg [2:0] g_out_q;
-  reg [1:0] b_out_q;  // registered outputs
+  reg [1:0] b_out_q;
   
   assign rgb_out = {r_out_q, g_out_q, b_out_q}; 
   
@@ -88,6 +92,5 @@ module gaussian(
     b_out_q <= b_sum_q[5:4];
     
   end
-
 
 endmodule
