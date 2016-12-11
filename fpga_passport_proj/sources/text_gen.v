@@ -46,7 +46,8 @@ module stringmaker #(parameter STRING_LENGTH=9)(input clk,
 				hcountold<=hcount[0];
 				vcountold<=vcount[0];
 				if ((hcount[0]!=hcountold)&&!(vcount[0]!=vcountold)) linecount<=1+linecount;
-				if (vcount[0]!=vcountold) begin//reset and first letter
+				if (numchar==0) letter<=8'h20;
+        if (vcount[0]!=vcountold&&numchar>0) begin//reset and first letter
 					linecount<=0; 
 					letter<=stringhold[ARRAY_LEN-1:ARRAY_LEN-8];
 					xshift<=0;
@@ -55,7 +56,7 @@ module stringmaker #(parameter STRING_LENGTH=9)(input clk,
 					condition<=18;
 					numcounter<=numchar-1;
 				end
-				if ((linecount==condition+x)&&numcounter!=0) begin //each loop it will move 18 pixels over
+				if ((linecount==condition+x)&&numcounter!=0&&numchar>=1) begin //each loop it will move 18 pixels over
 					numcounter<=numcounter-1;
 					if (countershift+2<numchar)countershift<=1+countershift; 
 					//all look ahead multiplications

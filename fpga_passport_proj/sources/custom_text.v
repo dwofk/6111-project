@@ -71,7 +71,6 @@ module custom_text #(parameter TEXT_LEN_MAX=20) (
   integer i;
   
   always @(posedge clock_27mhz) begin
-    num_char_q <= TEXT_LEN_MAX-char_ctr_q;
     if (reset_kbd_input) begin
       accepting_kbd_input_q <= 1'b0;
       processing_input_q <= 1'b0;
@@ -82,6 +81,7 @@ module custom_text #(parameter TEXT_LEN_MAX=20) (
         // user input is done; enable ready signal 
         accepting_kbd_input_q <= 1'b0;
         processing_input_q <= 1'b1;     // connected to char array rdy
+        num_char_q <= TEXT_LEN_MAX-char_ctr_q;
       end else accepting_kbd_input_q <= ~processing_input_q;
       if (accepting_kbd_input_q && char_rdy && (char_ctr_q > 0)) begin
         // new char byte has been entered by the user

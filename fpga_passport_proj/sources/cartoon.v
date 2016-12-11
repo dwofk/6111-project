@@ -10,7 +10,7 @@
 // Target Devices: 
 // Tool versions: 
 // Description: Implements a sketch effect as well as a cartoon effect. Takes both
-//              24-bit color RGB and 8-bit grayscale as input. Processes grayscale
+//              24-bit RGB color and grayscale as input. Processes grayscale
 //              input with 3x3 Sobel operator to detect edges. Applies 3x3 Gaussian
 //              kernel to the color RGB input to create a slight blur. Edge 
 //              detection produces a sketch effect on its own and a cartoon effect
