@@ -48,12 +48,14 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     // pixel values
     input [29:0] vr_pixel,
     input [7:0] bram_dout,
+    input [23:0] vr_bkgd_color,
     // VGA timing
     input [10:0] hcount,
     input [9:0] vcount,
     input blank,
     input hsync,
     input vsync,
+    input [10:0] h_offset,
     input in_display_bram,
     // VGA outputs
     output [23:0] pixel_out,
@@ -101,8 +103,9 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
   // ***********************************************
   
   wire [23:0] pixel_hsv_out;
+  wire [23:0] bkgd_hsv_out;
   
-  rgb2hsv rgb2hsv_conv(
+  rgb2hsv rgb2hsv_conv1(
     .clock(clk), 
     .reset(reset),
     .r(vr_pixel_color[23:16]), 
@@ -111,6 +114,17 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .h(pixel_hsv_out[23:16]), 
     .s(pixel_hsv_out[15:8]), 
     .v(pixel_hsv_out[7:0])
+  );
+  
+  rgb2hsv rgb2hsv_conv2(
+    .clock(clk), 
+    .reset(reset),
+    .r(vr_bkgd_color[23:16]), 
+    .g(vr_bkgd_color[15:8]), 
+    .b(vr_bkgd_color[7:0]),
+    .h(bkgd_hsv_out[23:16]), 
+    .s(bkgd_hsv_out[15:8]), 
+    .v(bkgd_hsv_out[7:0])
   );
 
   // ***********************************************
@@ -159,8 +173,11 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .chroma_key_match (chroma_key_match)
   );
   
+  wire [23:0] bkgd_pixel_out = (background == NO_BKD) ? 24'h000000 : bkgd_hsv_out;
+  
   wire [23:0] chr_pixel_out;    // chroma-keyed pixel
-  assign chr_pixel_out = (chroma_key_match) ? 24'hD5FFFF : hsv_chr_out;
+  //assign chr_pixel_out = (chroma_key_match) ? 24'hD5FFFF : hsv_chr_out;
+  assign chr_pixel_out = (chroma_key_match) ? bkgd_pixel_out : hsv_chr_out;
 
   // ***********************************************
   // Image Enhancement
@@ -228,6 +245,7 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .left     (left),
     .right    (right),
     .vsync    (vsync),
+    .h_offset (h_offset),
     .x_pos    (text_x_pos),
     .y_pos    (text_y_pos)
   );
@@ -273,6 +291,7 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
     .left     (left),
     .right    (right),
     .vsync    (vsync),
+    .h_offset (h_offset),
     .x_pos    (graphics_x_pos),
     .y_pos    (graphics_y_pos)
   );

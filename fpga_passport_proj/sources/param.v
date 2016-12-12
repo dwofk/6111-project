@@ -22,8 +22,10 @@
 // Display Parameters
 parameter H_MAX_NTSC = 11'd640;      // frame size of NTSC camera input
 parameter V_MAX_NTSC = 10'd480;      // frame size of NTSC camera input
-//parameter HCOUNT_MAX = 11'd1056;     // for 800x600 resolution
-//parameter VCOUNT_MAX = 10'd628;      // for 800x600 resolution
+parameter VGA_HCOUNT_MAX = 11'd1056;     // for 800x600 resolution
+parameter VGA_VCOUNT_MAX = 10'd628;      // for 800x600 resolution
+parameter XVGA_HCOUNT_MAX = 11'd1344;     // for 1024x768 resolution
+parameter XVGA_VCOUNT_MAX = 10'd806;      // for 1024x768 resolution
 
 // FSM States
 parameter FSM_IDLE = 3'b000;
@@ -73,7 +75,7 @@ parameter INVERT_DLY = 1;
 parameter SEPIA_DLY = 4;
 parameter GRAYSCALE_DLY = 3;
 
-parameter LINE_LEN = 1056;
+parameter LINE_LEN = VGA_HCOUNT_MAX;
 parameter LINE_BUF_DLY = LINE_LEN*2 + 3 + 1;
 parameter SOBEL_OP_DLY = 4;
 parameter EDGE_DET_DLY = 1;

@@ -23,7 +23,8 @@ module main_fsm(
     input sw_ntsc,
     input enter,
     input store_bram,
-    output [2:0] fsm_state
+    output [2:0] fsm_state,
+    output sw_ntsc_falling
   );
   
   `include "param.v"
@@ -43,7 +44,7 @@ module main_fsm(
   reg sw_ntsc_d_q, enter_d_q, store_bram_d_q;
 
   // edge signal declarations
-  wire sw_ntsc_rising, sw_ntsc_falling;
+  wire sw_ntsc_rising; // sw_ntsc_falling; -> an output
   wire enter_rising, enter_falling;
   wire store_bram_rising, store_bram_falling;
 

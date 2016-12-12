@@ -181,30 +181,30 @@ module zbt_6111_sample(beep, audio_reset_b,
 
 /**********/
 
-   assign ram1_data = 36'hZ; 
-   assign ram1_address = 19'h0;
+   //assign ram1_data = 36'hZ; 
+   //assign ram1_address = 19'h0;
    assign ram1_adv_ld = 1'b0;
-   assign ram1_clk = 1'b0;
+   //assign ram1_clk = 1'b0;
    
    //These values has to be set to 0 like ram0 if ram1 is used.
-   assign ram1_cen_b = 1'b1;
-   assign ram1_ce_b = 1'b1;
-   assign ram1_oe_b = 1'b1;
-   assign ram1_we_b = 1'b1;
-   assign ram1_bwe_b = 4'hF;
+   //assign ram1_cen_b = 1'b1;
+   assign ram1_ce_b = 1'b0;
+   assign ram1_oe_b = 1'b0;
+   //assign ram1_we_b = 1'b0;
+   assign ram1_bwe_b = 4'h0;
 
    // clock_feedback_out will be assigned by ramclock
    // assign clock_feedback_out = 1'b0;  //2011-Nov-10
    // clock_feedback_in is an input
    
    // Flash ROM
-   assign flash_data = 16'hZ;
-   assign flash_address = 24'h0;
-   assign flash_ce_b = 1'b1;
-   assign flash_oe_b = 1'b1;
-   assign flash_we_b = 1'b1;
-   assign flash_reset_b = 1'b0;
-   assign flash_byte_b = 1'b1;
+   //assign flash_data = 16'hZ;
+   //assign flash_address = 24'h0;
+   //assign flash_ce_b = 1'b1;
+   //assign flash_oe_b = 1'b1;
+   //assign flash_we_b = 1'b1;
+   //assign flash_reset_b = 1'b0;
+   //assign flash_byte_b = 1'b1;
    // flash_sts is an input
 
    // RS-232 Interface
@@ -293,7 +293,7 @@ module zbt_6111_sample(beep, audio_reset_b,
    
    ramclock rc(.ref_clock(clock_65mhz), .fpga_clock(clk),
 					.ram0_clock(ram0_clk), 
-					//.ram1_clock(ram1_clk),   //uncomment if ram1 is used
+					.ram1_clock(ram1_clk),   //uncomment if ram1 is used
 					.clock_feedback_in(clock_feedback_in),
 					.clock_feedback_out(clock_feedback_out), .locked(locked));
 
@@ -401,6 +401,12 @@ module zbt_6111_sample(beep, audio_reset_b,
   
   wire sw_ntsc_n = ~sw_ntsc;
   
+  wire sel_all = select0 && select1 && select2 && select3;
+  wire but_all = up && down && left && right && enter;
+  wire sw_all = switch[7] && switch[6] && switch[5] && switch[4] && switch[3] && switch[2] && switch[1] && switch[0];
+  
+  wire sel_on = select0 || select1 || select2 || select3;
+  
   ////////////////////////////////////////////////////////////////////////////
 
    wire [35:0] 	write_data = ntsc_data;
@@ -417,14 +423,16 @@ module zbt_6111_sample(beep, audio_reset_b,
   ////////////////////////////////////////////////////////////////////////////
   
   wire [2:0] fsm_state;
+  wire sw_ntsc_falling;
   
   main_fsm fsm1(
-    .clk        (clk),
-    .rst        (reset),
-    .sw_ntsc    (sw_ntsc_n),
-    .enter      (enter),
-    .store_bram (store_bram),
-    .fsm_state  (fsm_state)
+    .clk              (clk),
+    .rst              (reset),
+    .sw_ntsc          (sw_ntsc_n),
+    .enter            (enter),
+    .store_bram       (store_bram),
+    .fsm_state        (fsm_state),
+    .sw_ntsc_falling  (sw_ntsc_falling)
   );
   
   ////////////////////////////////////////////////////////////////////////////
@@ -436,7 +444,6 @@ module zbt_6111_sample(beep, audio_reset_b,
   // determine which background was selected
   reg [2:0] background_q;
   wire [2:0] background = background_q;
-  wire sel_all = select0 && select1 && select2 && select3;
   
   always @(posedge clk) begin
     if ((fsm_state == SEL_BKGD) && select0) background_q <= PARIS;
@@ -446,6 +453,96 @@ module zbt_6111_sample(beep, audio_reset_b,
     if ((fsm_state == SEL_BKGD) && sel_all) background_q <= NO_BKD;
   end
   
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  // Flash & Background Storage
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  // start signal for caching background
+  //wire start = sw_ntsc_falling || ((fsm_state == SEL_BKGD) && sel_on);
+  
+	//ALL THE FLASH STUFF OMG THIS IS THE WORST
+	wire [15:0] wdata;
+	wire [15:0] wdataold;
+	wire writemode;
+	wire dowrite;
+	wire [22:0] raddr; // address of where we want to read from flash (playing from flash)
+	//reg [22:0] raddr_old;
+	wire [15:0] frdata; 	//data being read
+	wire doread; // tell flash to read from memory
+	wire busy; // flash is busy, don't read/write when asserted
+	wire [11:0] fsmstate; 
+	wire dots;
+
+	//reg [4:0] flashcounter=0;
+	//reg [22:0] giant=0;
+	wire flashreset;
+	assign flashreset=sw_all && but_all && sel_all;
+	reg [2:0] pictsel=4;
+  always @(posedge clock_27mhz) pictsel<={1'b0, background[1:0]};
+//	assign pictsel=switch[2:0];
+	//always @(posedge clock_27mhz) begin
+  //  if (fsm_state == FSM_IDLE) pictsel <= 4;
+  //  else pictsel<={1'b0, background[1:0]};
+  //end
+	wire start;
+	assign start = (fsm_state == SEL_BKGD) && sel_on;
+	//wire zbt_we;
+	wire [22:0] flashaddr;
+	wire fifo_rd_en, fifo_wr_en, fifo_empty, fifo_full;
+	//wire [35:0] write_data;
+	//reg [35:0] write_data_old;
+	wire [18:0] 	display_addr_flash_img;
+	wire [35:0] vram_read_data_flash_img;
+	wire [15:0] fifodata;
+	//assign write_data={20'd0,frdata[15:0]};
+	wire [18:0] zbtaddr;
+	reg [18:0] zbtwrite=0;
+	wire loaded;
+	wire zbt_we;
+	reg busy_old;
+	reg readytostore=0;
+	assign zbt_we= readytostore;
+	wire image_loaded = (zbtwrite == 19'd307200);
+   assign zbtaddr= loaded ? display_addr_flash_img : zbtwrite;
+	wire ram1_clk_not_used;
+	reg [15:0] datatostore=0;
+	zbt_6111 zbt_6111_flash_img(clk, 1'b1,zbt_we,zbtaddr, {20'd0,datatostore}, vram_read_data_flash_img,
+                            ram1_clk_not_used, ram1_we_b, ram1_address, ram1_data, ram1_cen_b);
+							
+	flash_manager flash(.clock(clock_27mhz), .reset(flashreset), .dots(dots), .writemode(writemode), .wdata(wdata), 
+					  .dowrite(dowrite), .raddr(raddr), .frdata(frdata), .doread(doread), .busy(busy), 
+					  .flash_data(flash_data), .flash_address(flash_address), .flash_ce_b(flash_ce_b), 
+					  .flash_oe_b(flash_oe_b), .flash_we_b(flash_we_b), .flash_reset_b(flash_reset_b), 
+					  .flash_sts(flash_sts), .flash_byte_b(flash_byte_b), .fsmstate(fsmstate));       
+          
+					  
+	flashreader flashreader(clock_27mhz,flashreset,busy,start,pictsel,raddr,
+									writemode,dowrite,doread,wdata, loaded);
+
+	
+	reg [15:0] frdata_q=0;
+	reg [18:0] frdata_ctr_q = 0;
+	reg [18:0] datathing=0;
+	
+  always @(posedge clk) begin
+		busy_old<=busy;
+		if (start) zbtwrite<=0;
+		if (~start && busy_old && ~busy && ~loaded) begin
+				datatostore<=frdata;
+				readytostore<=1;
+				zbtwrite<=zbtwrite+1;
+				datathing<=datathing+1;
+			end 
+		else readytostore<=0;
+	end
+
+  wire [29:0] 	bkgd_vr_pixel; 
+
+	vram_flash_img #(0,0) vd2(reset,clk,hcount,vcount,bkgd_vr_pixel,
+		    display_addr_flash_img,vram_read_data_flash_img);
+
   ////////////////////////////////////////////////////////////////////////////
   //
   // Custom Text
@@ -480,6 +577,7 @@ module zbt_6111_sample(beep, audio_reset_b,
   wire blank_out, hsync_out, vsync_out;
   
   // BRAM signals
+  wire [10:0] h_offset;
   wire in_display_bram;
   wire [7:0]  bram_dout;
   wire [1:0]  bram_state;
@@ -498,6 +596,12 @@ module zbt_6111_sample(beep, audio_reset_b,
   // User Selections
   wire [2:0] selected_filter;
   wire [1:0] selected_graphic;
+  
+  // Background Pixel
+  wire [23:0] vr_bkgd;
+  assign vr_bkgd[23:16] = {bkgd_vr_pixel[15:11], 3'd0};
+  assign vr_bkgd[15:8] = {bkgd_vr_pixel[10:5], 2'd0};
+  assign vr_bkgd[7:0] = {bkgd_vr_pixel[4:0], 3'd0};
         
   pixel_sel #(CUSTOM_TEXT_MAXLEN) pixel_sel1(
     .clk                      (clk),
@@ -532,12 +636,14 @@ module zbt_6111_sample(beep, audio_reset_b,
     // pixel values
     .vr_pixel                 (vr_pixel),
     .bram_dout                (bram_dout),
+    .vr_bkgd_color            (vr_bkgd),
     // VGA timing
     .hcount                   (hcount),
     .vcount                   (vcount),
     .blank                    (blank),
     .hsync                    (hsync),
     .vsync                    (vsync),
+    .h_offset                 (h_offset),
     .in_display_bram          (in_display_bram),
     // VGA outputs
     .pixel_out                (pixel_out),
@@ -572,12 +678,12 @@ module zbt_6111_sample(beep, audio_reset_b,
   // offset hcount to sync first pixel being stored in BRAM with the first
   // image pixel coming out on the VGA pixel signal after image processing
   
-  wire [10:0] h_offset = (!filters_en) ? SYNC_DLY :
-                            (selected_filter == SEPIA) ? SYNC_DLY_SEP :
-                            (selected_filter == INVERT) ? SYNC_DLY_INV :
-                            (selected_filter == GRAYSCALE) ? SYNC_DLY_GRY :
-                            (selected_filter == EDGE) ? SYNC_DLY+10'd10 :
-                            (selected_filter == CARTOON) ? SYNC_DLY+10'd10 : SYNC_DLY;    
+  assign h_offset = (!filters_en) ? SYNC_DLY :
+                     (selected_filter == SEPIA) ? SYNC_DLY_SEP :
+                     (selected_filter == INVERT) ? SYNC_DLY_INV :
+                     (selected_filter == GRAYSCALE) ? SYNC_DLY_GRY :
+                     (selected_filter == EDGE) ? SYNC_DLY+10'd10 :
+                     (selected_filter == CARTOON) ? SYNC_DLY+10'd10 : SYNC_DLY;    
   
   wire hcount_in_display_bram = (hcount >= h_offset) && (hcount < (H_MAX_DISPLAY+h_offset));
   wire vcount_in_display_bram = (vcount >= V_OFFSET) && (vcount < (V_MAX_DISPLAY+V_OFFSET));
@@ -671,8 +777,15 @@ module zbt_6111_sample(beep, audio_reset_b,
   // VGA Output
   //
   ////////////////////////////////////////////////////////////////////////////
+  
+  wire h_in_start_disp = (hcount > 20) && (hcount < 620);
+  wire v_in_start_disp = (vcount > 20) && (vcount < 300);
+  wire in_start_disp = h_in_start_disp && v_in_start_disp;
 
    // In order to meet the setup and hold times of the AD7125, we send it ~clk.
+//   assign vga_out_red = (fsm_state == FSM_IDLE) ? ((in_start_disp) ? vr_bkgd[23:16] : 0) : pixel_out[23:16];
+//   assign vga_out_green = (fsm_state == FSM_IDLE) ? ((in_start_disp) ? vr_bkgd[15:8] : 0) : pixel_out[15:8];
+//   assign vga_out_blue = (fsm_state == FSM_IDLE) ? ((in_start_disp) ? vr_bkgd[7:0] : 0) : pixel_out[7:0];
    assign vga_out_red = pixel_out[23:16];
    assign vga_out_green = pixel_out[15:8];
    assign vga_out_blue = pixel_out[7:0];
