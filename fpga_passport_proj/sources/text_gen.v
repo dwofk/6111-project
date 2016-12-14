@@ -1,29 +1,18 @@
 `timescale 1ns / 1ps
-/*	always @(posedge vsync) begin
-			if (right&&x_pos!=1000) x_pos<=x_pos+1; 
-			if (left&&x_pos!=1) x_pos<=x_pos-1;
-			if (up&&y_pos!=1) y_pos<=y_pos-1;
-			if (down&&y_pos!=759) y_pos<=y_pos+1;  
-	end  
-	wire [71:0]string;
-   assign string={8'h4F,8'h20,8'h51,8'h20,8'h58,8'h20,8'h4A,8'h20,8'h58};
-	reg [5:0]numchar=9;
-   stringmaker stringmaker(.clk(clock_65mhz),.x(x_pos),.hcount(hcount),.y(y_pos),
-									.vcount(vcount),.numchar(numchar), .background(switch[7:6]),.custom(switch[5]),
-									.ready(switch[4]),.string(string),.pixel(pixel));*/
 module stringmaker #(parameter STRING_LENGTH=9)(input clk, 
 				   input [10:0] x,hcount, 
 				   input [9:0] y,vcount,
-					input [1:0] background,
-					input [5:0] numchar,//, numchar is string_length?
-					input ready,
-					input [STRING_LENGTH*8-1:0]string,
-					input custom,
+				   input [1:0] background,
+				   input [5:0] numchar,
+				   input ready,
+				   input [STRING_LENGTH*8-1:0]string,
+				   input custom,
 				   output[23:0] pixel); 
-   //FIX ALL THE LETTERS
+   
 	parameter ARRAY_LEN=8*STRING_LENGTH;
 	parameter leftmax=1023;
 	parameter bottommax=759;
+
 	reg [7:0] letter=8'h57;
 	wire [10:0] xpos;
 	reg [10:0] xshift;
@@ -41,21 +30,21 @@ module stringmaker #(parameter STRING_LENGTH=9)(input clk,
 	always @(posedge clk) begin
 		
 		//letter generator
-		if(custom)begin
+		if(custom)begin //custom text
 			if (ready) stringhold<=string;
 				hcountold<=hcount[0];
 				vcountold<=vcount[0];
 				if ((hcount[0]!=hcountold)&&!(vcount[0]!=vcountold)) linecount<=1+linecount;
-				if (numchar==0) letter<=8'h20;
-        if (vcount[0]!=vcountold&&numchar>0) begin//reset and first letter
+				if (numchar==0) letter<=8'h20; //set letter to space to clean out in a sense
+        		if (vcount[0]!=vcountold&&numchar>0) begin//reset and first letter only if there is
 					linecount<=0; 
 					letter<=stringhold[ARRAY_LEN-1:ARRAY_LEN-8];
 					xshift<=0;
 					countershift<=1;
 					letterfind<=8;
-					condition<=18;
+					condition<=18; //18 pixels is an aesthetically pleasing offset
 					numcounter<=numchar-1;
-				end
+					end
 				if ((linecount==condition+x)&&numcounter!=0&&numchar>=1) begin //each loop it will move 18 pixels over
 					numcounter<=numcounter-1;
 					if (countershift+2<numchar)countershift<=1+countershift; 
@@ -76,7 +65,7 @@ module stringmaker #(parameter STRING_LENGTH=9)(input clk,
 						end
 				end		
 			end
-		else begin
+		else begin // all the default text code.
 			hcountold<=hcount[0];
 			vcountold<=vcount[0];
 			if ((hcount[0]!=hcountold)&&!(vcount[0]!=vcountold)) linecount<=1+linecount;
@@ -242,7 +231,6 @@ module stringmaker #(parameter STRING_LENGTH=9)(input clk,
 					end
 				endcase
 			end
-		
 	end
 	assign xpos=x+xshift;
 	textcaller lettermaker(clk,xpos,hcount,y,vcount,letter,pixel);
@@ -250,15 +238,15 @@ endmodule
 
 module textcaller #(parameter WIDTH = 15,HEIGHT =17)
 	(input pixel_clk, 
-	input [10:0] x,hcount, 
-   input [9:0] y,vcount,
-   input [7:0] letter,
-   output reg[23:0] pixel); 
+	 input [10:0] x,hcount, 
+   	 input [9:0] y,vcount,
+     input [7:0] letter,
+     output reg[23:0] pixel); 
      
 	reg [8:0] image_addr;
 	wire [8:0] image_mem;
-   wire [14:0] image_bits;
-   reg [3:0] mem_iter=0; 
+    wire [14:0] image_bits;
+    reg [3:0] mem_iter=0; 
 	reg [3:0] hdelay=0;
 	reg hcountold;
 	reg vcountold;
@@ -277,9 +265,9 @@ module textcaller #(parameter WIDTH = 15,HEIGHT =17)
 	   			8'h4A:image_addr<=153;//J
    				8'h4B:image_addr<=170;//K
    				8'h4C:image_addr<=187;//L
-					8'h4D:image_addr<=204;//M
+				8'h4D:image_addr<=204;//M
    				8'h4E:image_addr<=221;//N
-					8'h4F:image_addr<=238;//O
+				8'h4F:image_addr<=238;//O
    				8'h50:image_addr<=255;//P
    				8'h51:image_addr<=272;//Q
    				8'h52:image_addr<=289;//R
@@ -291,20 +279,24 @@ module textcaller #(parameter WIDTH = 15,HEIGHT =17)
    				8'h58:image_addr<=391;//X
    				8'h59:image_addr<=408;//Y
    				8'h5A:image_addr<=425;//Z
-					8'h20:image_addr<=442;//SPACE
-					default: image_addr<=442;//
+				8'h20:image_addr<=442;//SPACE
+				default: image_addr<=442;//
    			endcase
 
-			hcountold<=hcount[0];
+			hcountold<=hcount[0]; 
 			vcountold<=vcount[0]; 
 
 			if (vcount==y) mem_iter<=0;
+
+			//if we are within range and vcount has changed. then go get the next line in memory
 			if ((~(vcount==y))&&(vcount[0]!=vcountold)&&(vcount>y)&&(vcount<HEIGHT+y)) mem_iter<=mem_iter+1;
+
+			//if we are within range and hcount has changed. then look at the next pixel
 			if ((hcount[0]!=hcountold)&&(hcount>=x)&&(hcount<=WIDTH+x)) hdelay<=hdelay+1;
-			if (image_bits[15-hdelay[3:0]]==1)pixel <= 24'hFF0000; 
+			if (image_bits[15-hdelay[3:0]]==1)pixel <= 24'hFF0000; //check for 0 or 1. assign color accourdingly
 			else pixel <= 24'hFFFFFF;
 		end
-	assign image_mem=image_addr+mem_iter;
+	assign image_mem=image_addr+mem_iter; //memory offset to select correct letter plus the iterator
 	font_rom alphabet(pixel_clk,image_mem,image_bits);  
   
 endmodule

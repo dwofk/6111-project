@@ -458,56 +458,39 @@ module zbt_6111_sample(beep, audio_reset_b,
   // Flash & Background Storage
   //
   ////////////////////////////////////////////////////////////////////////////
-
-  // start signal for caching background
-  //wire start = sw_ntsc_falling || ((fsm_state == SEL_BKGD) && sel_on);
   
-	//ALL THE FLASH STUFF OMG THIS IS THE WORST
-	wire [15:0] wdata;
-	wire [15:0] wdataold;
+	//ALL THE FLASH STUFF 
+	wire [15:0] wdata; //write data. not needed here
 	wire writemode;
 	wire dowrite;
 	wire [22:0] raddr; // address of where we want to read from flash (playing from flash)
-	//reg [22:0] raddr_old;
 	wire [15:0] frdata; 	//data being read
 	wire doread; // tell flash to read from memory
 	wire busy; // flash is busy, don't read/write when asserted
-	wire [11:0] fsmstate; 
-	wire dots;
-
-	//reg [4:0] flashcounter=0;
-	//reg [22:0] giant=0;
-	wire flashreset;
+	wire [11:0] fsmstate; //for debugging
+	wire dots; 
+	wire flashreset; //done want this asserted easily/at all
 	assign flashreset=sw_all && but_all && sel_all;
 	reg [2:0] pictsel=4;
   always @(posedge clock_27mhz) pictsel<={1'b0, background[1:0]};
-//	assign pictsel=switch[2:0];
-	//always @(posedge clock_27mhz) begin
-  //  if (fsm_state == FSM_IDLE) pictsel <= 4;
-  //  else pictsel<={1'b0, background[1:0]};
-  //end
 	wire start;
 	assign start = (fsm_state == SEL_BKGD) && sel_on;
-	//wire zbt_we;
 	wire [22:0] flashaddr;
 	wire fifo_rd_en, fifo_wr_en, fifo_empty, fifo_full;
-	//wire [35:0] write_data;
-	//reg [35:0] write_data_old;
-	wire [18:0] 	display_addr_flash_img;
+	wire [18:0] display_addr_flash_img;
 	wire [35:0] vram_read_data_flash_img;
 	wire [15:0] fifodata;
-	//assign write_data={20'd0,frdata[15:0]};
 	wire [18:0] zbtaddr;
-	reg [18:0] zbtwrite=0;
+	reg [18:0]  zbtwrite=0;
 	wire loaded;
 	wire zbt_we;
 	reg busy_old;
 	reg readytostore=0;
 	assign zbt_we= readytostore;
 	wire image_loaded = (zbtwrite == 19'd307200);
-   assign zbtaddr= loaded ? display_addr_flash_img : zbtwrite;
+  assign zbtaddr= loaded ? display_addr_flash_img : zbtwrite; //reading vs writing adresses
 	wire ram1_clk_not_used;
-	reg [15:0] datatostore=0;
+	reg [15:0] datatostore=0; //16 bit color pixels
 	zbt_6111 zbt_6111_flash_img(clk, 1'b1,zbt_we,zbtaddr, {20'd0,datatostore}, vram_read_data_flash_img,
                             ram1_clk_not_used, ram1_we_b, ram1_address, ram1_data, ram1_cen_b);
 							
@@ -529,7 +512,7 @@ module zbt_6111_sample(beep, audio_reset_b,
   always @(posedge clk) begin
 		busy_old<=busy;
 		if (start) zbtwrite<=0;
-		if (~start && busy_old && ~busy && ~loaded) begin
+		if (~start && busy_old && ~busy && ~loaded) begin //edge detection on busy signal
 				datatostore<=frdata;
 				readytostore<=1;
 				zbtwrite<=zbtwrite+1;

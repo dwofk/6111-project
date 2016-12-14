@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Lorenzo Vigano
 // 
 // Create Date:    21:00:02 12/07/2016 
 // Design Name: 
@@ -24,10 +24,8 @@ module flashreader(clk,flashreset,busy,start,pictsel, flashaddr,writemode,dowrit
 		input busy;
 		input start;
 		input [2:0] pictsel;
-		//output reg zbt_we;
 		output reg loaded=0;
 		output reg [22:0] flashaddr;
-		//output reg [18:0] zbtaddr;
 		output reg writemode, dowrite, doread, wdata;
 		
 		reg waitone=0;
@@ -35,19 +33,17 @@ module flashreader(clk,flashreset,busy,start,pictsel, flashaddr,writemode,dowrit
 		reg started=0;
 		reg [18:0] flashcounter=0;
 		always @(posedge clk) begin
-			if (flashreset) begin
+			if (flashreset) begin //shouldn't ever happen
 				writemode <=1; 
 				dowrite <= 0; 
 				doread <= 0;
 				wdata <= 0; // initial write data = 0
 				flashaddr <= 0; // initial read address = 0
 				end
-			if (start) started<=1;
-			if (busy==0) begin
+			if (start) started<=1; //if given signal to start caching an image
+			if (busy==0) begin //only do things when flash isnt busy
 				if(started) begin
-					//zbtaddr<=0;
 					loaded<=0;
-					//zbt_we<=1;
 					writemode<=0;
 					doread<=1;
 					waitone<=0;
@@ -55,7 +51,7 @@ module flashreader(clk,flashreset,busy,start,pictsel, flashaddr,writemode,dowrit
 					case (pictsel)
 						0:begin //paris
 							flashaddr<=22'd307201;
-							flashcounter<=307200;
+							flashcounter<=307200; //640*480
 							end
 						1:begin //rome
 							flashaddr<=22'd614401;
@@ -71,27 +67,21 @@ module flashreader(clk,flashreset,busy,start,pictsel, flashaddr,writemode,dowrit
 							end 
 						4:begin //start
 							flashaddr<=22'd921601;
-							flashcounter<=260400;
+							flashcounter<=260400;//640*360
 							end
 					endcase
-					started<=0;
+					started<=0; //done intializing things. now go to steady state code
 				end
-				else begin 
+				else begin //steady state code
 					if (flashcounter!=0) begin
 						flashcounter<=flashcounter-1;
 						flashaddr<=flashaddr+1;
 						end
-					else begin
+					else begin //picture has been sent to zbt
 						loaded<=1; 
 						end
 				end
 			end
 		end
-//		else begin //aka busy
-//		end
-	//assign zbt_we=~busy;
-	//module zbt_6111(clk, cen, we, addr, write_data, read_data,
-		  //ram_clk, ram_we_b, ram_address, ram_data, ram_cen_b);
-	
 
 endmodule
