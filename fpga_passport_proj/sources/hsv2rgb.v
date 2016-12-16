@@ -51,15 +51,15 @@ module hsv2rgb(
     reg [15:0] p3_q, q3_q, t3_q;
     
     // delayed signals
-    reg [7:0] h1_q, h2_q;														              // delayed hue
-    reg [7:0] s1_q, s2_q, s3_q, s4_q, s5_q;								      // delayed saturation
-    reg [7:0] v1_q, v2_q, v3_q, v4_q, v5_q, v6_q, v7_q, v8_q;		// delayed value
-    reg [3:0] hrg1_q, hrg2_q, hrg3_q, hrg4_q, hrg5_q, hrg6_q;		// delayed hue region
+    reg [7:0] h1_q, h2_q;				      // delayed hue
+    reg [7:0] s1_q, s2_q, s3_q, s4_q, s5_q;		      // delayed saturation
+    reg [7:0] v1_q, v2_q, v3_q, v4_q, v5_q, v6_q, v7_q, v8_q; // delayed value
+    reg [3:0] hrg1_q, hrg2_q, hrg3_q, hrg4_q, hrg5_q, hrg6_q; // delayed hue region
     
     // latched output values
     reg [7:0] r_q, g_q, b_q;
 	 
-	 // output assignments
+    // output assignments
     assign {r, g, b} = {r_q, g_q, b_q};
     
     always @(posedge clk) begin

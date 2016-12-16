@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+# 6.111 Final Project - FPGA Passport
+# Diana Wofk | MIT 6.111 | Fall 2016
+
 import serial, time
 from Queue import *
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Receiving data..."
+echo "Connecting..."
 python uart_rx.py
 
 gcc -o bin2bmp bin2bmp.c

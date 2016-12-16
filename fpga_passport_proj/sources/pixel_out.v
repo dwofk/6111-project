@@ -354,7 +354,6 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
       vsync_shift_reg[i] <= vsync_shift_reg[i-1];
       blank_shift_reg[i] <= blank_shift_reg[i-1];
     end
-    
   end
   
   // ***********************************************
@@ -370,27 +369,16 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
                         (graphics_en && (graphics_gen_pixel != 24'hFFFFFF)) ? graphics_gen_pixel : pixel_filtered;
                                               
   reg [23:0] pixel_out_q; // registered output
-
-  //wire h_border_pixel = (hcount<2) || ((hcount>(H_MAX_NTSC-3)) && (hcount<H_MAX_NTSC));
-  //wire v_border_pixel = (vcount<2) || ((vcount>(V_MAX_NTSC-3)) && (vcount<V_MAX_NTSC));
-  //wire border_pixel = h_border_pixel || v_border_pixel;
   
   wire [23:0] bram_dout_24bit = {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0};
   
   always @(posedge clk) begin
-    //pixel_out_q <= sw_ntsc ? 0 : pixel_hsv_out;
-    //pixel_out_q <= sw_ntsc ? 0 : store_bram ? (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF) : vga_rgb_out;
-    
     // if reading from BRAM and displaying stored data, display 24-bit BRAM output
     // otherwise, if reading from BRAM and transmitting data to PC, display black screen
     // otherwise, display VGA RGB pixel or the start splash screen 
-    
     if ((bram_state == READING_FRAME) && !(fsm_state == SEND_TO_PC))
       pixel_out_q <= in_display_bram ? bram_dout_24bit : 24'hFFFFFF;
     else pixel_out_q <= sw_ntsc ? 24'h000000 : (fsm_state == SEND_TO_PC) ? 24'h000000 : vga_rgb_out;
-
-    //pixel_out_q <= sw_ntsc ? 0 : (in_display ? {bram_dout[7:5],5'd0,bram_dout[4:2],5'd0,bram_dout[1:0],6'd0} : 24'hFFFFFF);
-    //pixel_out_q <= sw_ntsc ? 0 : vr_pixel_color;
   end  
   
   // Output Signal Assignments
@@ -425,5 +413,4 @@ module pixel_sel #(parameter TEXT_LEN_MAX=20) (
                         (selected_filter == EDGE) ? vsync_shift_reg[SYNC_DLY_SBL-1] :
                         (selected_filter == CARTOON) ? vsync_shift_reg[SYNC_DLY_SBL-1] :
                          vsync_shift_reg[SYNC_DLY-1];                            
-
 endmodule

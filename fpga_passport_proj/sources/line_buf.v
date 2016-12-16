@@ -15,8 +15,7 @@
 //              a set of signals that correspond to the 3x3 matrix consisting of 
 //              8 neighboring pixels surrounding a center pixel.
 //
-// Dependencies: 
-//
+// Dependencies:
 // Revision: 
 // Revision 0.01 - File Created
 // Additional Comments: 
@@ -70,5 +69,4 @@ module line_buf #(parameter ELEM_LEN=1) (
     {a6_q, a5_q, a4_q} <= {line3[2], line3[1], line3[0]};
     
   end
-
 endmodule

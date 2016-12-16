@@ -55,15 +55,18 @@ module sepia_tb;
     forever #5 clk = ~clk;    // 10ns period
   end
 
-	initial begin
-		// Initialize Inputs
-		//clk = 0;
-		rst = 0;
-		//sepia_en = 0;
-		//rgb_in = 0;
+  initial begin
+    // Initialize Inputs
+    //clk = 0;
 
-		// Wait 100 ns for global reset to finish
-		#100;
+    rst = 0;
+
+    //sepia_en = 0;
+    //rgb_in = 0;
+
+    // Wait 100 ns for global reset to finish
+
+    #100;
     
     // Add stimulus here
     
@@ -105,7 +108,7 @@ module sepia_tb;
     
     #1000;
         
-	end
+  end
       
 endmodule
 

@@ -66,9 +66,7 @@ module zbt_6111(clk, cen, we, addr, write_data, read_data,
                                    // so we clock it on the falling edges
                                    // and thus let data stabilize longer
    assign      ram_address = addr;
-   
    assign      ram_data = we_delay[1] ? write_data_old2 : {36{1'bZ}};
    assign      read_data = ram_data;
 
 endmodule // zbt_6111
-

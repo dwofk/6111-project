@@ -126,6 +126,9 @@ write_bmp(const char *filename, int width, int height, char *rgb)
 
 /***************************************************************************/
 
+/* 6.111 Final Project - FPGA Passport */
+/* Diana Wofk | MIT 6.111 | Fall 2016 */
+
 /* Reads input file and saves contents as a string */
 /* Ouputs data in stored string as a bitmap file */
 

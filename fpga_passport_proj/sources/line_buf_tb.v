@@ -59,16 +59,16 @@ module line_buf_tb;
     forever #5 clk=~clk;  // 10 ns period
   end
 
-	initial begin
-		rst = 0;
+  initial begin
+    rst = 0;
     
     #100
     
-		rgb_gray = 8'd125;
+    rgb_gray = 8'd125;
 
-		#1000000;
+    #1000000;
      
-	end
+  end
       
 endmodule
 
