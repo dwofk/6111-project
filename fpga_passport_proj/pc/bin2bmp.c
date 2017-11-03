@@ -24,7 +24,7 @@
 
 struct BMPHeader
 {
-    char bfType[2];       /* "BM" */
+    char bfType[3];       /* "BM" + null terminating char */
     int bfSize;           /* Size of file in bytes */
     int bfReserved;       /* set to 0 */
     int bfOffBits;        /* Byte offset to actual bitmap data (= 54) */
@@ -82,7 +82,6 @@ write_bmp(const char *filename, int width, int height, char *rgb)
 
     file = fopen (filename, "wb");
     if (file == NULL) return(0);
-  
     fwrite(&bmph.bfType, 2, 1, file);
     fwrite(&bmph.bfSize, 4, 1, file);
     fwrite(&bmph.bfReserved, 4, 1, file);
@@ -98,7 +97,7 @@ write_bmp(const char *filename, int width, int height, char *rgb)
     fwrite(&bmph.biYPelsPerMeter, 4, 1, file);
     fwrite(&bmph.biClrUsed, 4, 1, file);
     fwrite(&bmph.biClrImportant, 4, 1, file);
-  
+ 
     line = malloc(bytesPerLine);
     if (line == NULL)
     {
